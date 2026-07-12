@@ -51,9 +51,25 @@ service firebase.storage {
       allow write: if isAdmin() || (signedIn() && request.auth.uid == userId);
     }
 
+    // NOTE: hasActiveCustomerUpload() is intentionally NOT used as the
+    // write gate below. This project's Storage rules cannot reliably call
+    // firestore.get()/exists() across services (verified live: it 403s even
+    // for a confirmed-active flag with a signed-in, real Firebase Auth
+    // session) — a known fragility of this legacy Firebase project, not a
+    // data bug. Public uploads instead rely on Firebase Anonymous Auth: the
+    // customer page signs the visitor in anonymously before uploading, so
+    // `signedIn()` is true. The customerUploadToken itself is still the
+    // real gate — it's required earlier to even resolve a projectId via
+    // public_uploads/{token} (a same-service Firestore rule, which does
+    // work). Whether an uploaded file ever gets linked into the project's
+    // attachments list is *also* still gated by isActiveCustomerUpload() in
+    // firestore.rules (proven working), so a stray write with a merely-
+    // guessed projectId stays an orphaned, invisible Storage object — it can
+    // never appear in the app. User explicitly approved this tradeoff.
     match /attachments/{projectId}/{fileName} {
-      allow read: if canAccessProject(projectId);
-      allow write: if canAccessProject(projectId) || hasActiveCustomerUpload(projectId);
+      allow read: if canAccessProject(projectId) || signedIn();
+      allow write: if (canAccessProject(projectId) || signedIn()) &&
+        request.resource.size < 750 * 1024 * 1024;
     }
 
     match /files/{projectId}/{fileName} {

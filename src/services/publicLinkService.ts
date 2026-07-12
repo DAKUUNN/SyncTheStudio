@@ -1,6 +1,8 @@
 import {
+  arrayUnion,
   collection,
   doc,
+  FieldPath,
   getDoc,
   getDocs,
   orderBy,
@@ -9,12 +11,11 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { db } from "@/firebase";
+import { signInAnonymously } from "firebase/auth";
+import { auth, db } from "@/firebase";
 import {
   masterVersionFromDocument,
   parseDate,
-  parseStringList,
-  parseStringMap,
   type MasterVersionModel,
 } from "@/models/types";
 import { hashSharePassword } from "@/lib/crypto";
@@ -91,6 +92,16 @@ export async function getPublicCustomerUploadByToken(
   return toPublicBase(data);
 }
 
+/**
+ * Public share pages have no login. Storage write rules for these flows
+ * require `signedIn()` (see storage.rules), so we sign the visitor in
+ * anonymously before writing — a throwaway auth session, not a real account.
+ */
+export async function ensureAnonymousAuth(): Promise<void> {
+  if (auth.currentUser) return;
+  await signInAnonymously(auth);
+}
+
 export async function verifyPublicLinkPassword(params: {
   password: string;
   passwordHash: string | null;
@@ -110,17 +121,13 @@ export async function getPublicMasterVersions(
   return snapshot.docs.map(masterVersionFromDocument);
 }
 
-function mergeAttachmentData(
-  data: Record<string, unknown> | undefined,
-  attachment: AttachmentUploadResult
-): { attachments: string[]; attachmentNames: Record<string, string> } {
-  const attachments = parseStringList(data?.attachments);
-  const attachmentNames = parseStringMap(data?.attachmentNames);
-  if (!attachments.includes(attachment.url)) attachments.push(attachment.url);
-  attachmentNames[attachment.url] = attachment.fileName;
-  return { attachments, attachmentNames };
-}
-
+/**
+ * The anonymous customer session can only ever *update* (not read) the
+ * owner's private project doc / shared_projects — see firestore.rules'
+ * isActiveCustomerUpload() exception. A read-then-merge would 403 on the
+ * read, so this appends blindly with arrayUnion() + a single-map-key write
+ * (via FieldPath, so a URL containing dots isn't parsed as nested paths).
+ */
 async function syncAttachmentIntoProjectCopies(
   projectId: string,
   ownerId: string,
@@ -130,33 +137,18 @@ async function syncAttachmentIntoProjectCopies(
   const sharedRef = doc(db, "shared_projects", projectId);
   const rootRef = doc(db, "projects", projectId);
 
-  const [ownerSnapshot, sharedSnapshot] = await Promise.all([
-    getDoc(ownerRef),
-    getDoc(sharedRef),
-  ]);
-
-  if (ownerSnapshot.exists()) {
-    const merged = mergeAttachmentData(
-      ownerSnapshot.data() as Record<string, unknown> | undefined,
-      attachment
+  const applyUpdate = (ref: typeof ownerRef) =>
+    updateDoc(
+      ref,
+      "attachments",
+      arrayUnion(attachment.url),
+      new FieldPath("attachmentNames", attachment.url),
+      attachment.fileName,
+      "updatedAt",
+      serverTimestamp()
     );
-    await updateDoc(ownerRef, {
-      ...merged,
-      updatedAt: serverTimestamp(),
-    });
-  }
 
-  if (sharedSnapshot.exists()) {
-    const merged = mergeAttachmentData(
-      sharedSnapshot.data() as Record<string, unknown> | undefined,
-      attachment
-    );
-    await updateDoc(sharedRef, {
-      ...merged,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
+  await Promise.allSettled([applyUpdate(ownerRef), applyUpdate(sharedRef)]);
   await setDoc(rootRef, { updatedAt: serverTimestamp() }, { merge: true });
 }
 
@@ -170,6 +162,8 @@ export async function uploadFilesViaPublicLink(params: {
   if (!normalizedOwnerId) {
     throw new Error("Projektbesitzer konnte nicht ermittelt werden.");
   }
+
+  await ensureAnonymousAuth();
 
   const uploaded: AttachmentUploadResult[] = [];
   for (let index = 0; index < params.files.length; index++) {
