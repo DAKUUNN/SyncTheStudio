@@ -40,7 +40,7 @@ import {
 
 type ViewMode = "grid" | "list" | "board";
 type OwnershipTab = "all" | "own" | "shared";
-type SortMode = "updated" | "deadline" | "name" | "priority";
+type SortMode = "status" | "updated" | "deadline" | "name" | "priority";
 
 const VIEW_MODE_KEY = "project_view_mode";
 
@@ -68,7 +68,7 @@ export function ProjectListScreen() {
   const [priorityFilter, setPriorityFilter] = useState<ProjectPriority | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [searchText, setSearchText] = useState("");
-  const [sortMode, setSortMode] = useState<SortMode>("updated");
+  const [sortMode, setSortMode] = useState<SortMode>("status");
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
@@ -126,8 +126,26 @@ export function ProjectListScreen() {
           p.projectType.toLowerCase().includes(q)
       );
     }
+    const priorityOrder: Record<ProjectPriority, number> = {
+      dringend: 0,
+      hoch: 1,
+      mittel: 2,
+      niedrig: 3,
+    };
+
     const sorted = [...list];
     switch (sortMode) {
+      case "status":
+        sorted.sort((a, b) => {
+          const byStatus =
+            sortOrderForStatusId(a.statusValue, statuses) -
+            sortOrderForStatusId(b.statusValue, statuses);
+          if (byStatus !== 0) return byStatus;
+          const byPriority = priorityOrder[a.priority] - priorityOrder[b.priority];
+          if (byPriority !== 0) return byPriority;
+          return b.updatedAt.getTime() - a.updatedAt.getTime();
+        });
+        break;
       case "updated":
         sorted.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
         break;
@@ -141,19 +159,12 @@ export function ProjectListScreen() {
       case "name":
         sorted.sort((a, b) => a.name.localeCompare(b.name));
         break;
-      case "priority": {
-        const order: Record<ProjectPriority, number> = {
-          dringend: 0,
-          hoch: 1,
-          mittel: 2,
-          niedrig: 3,
-        };
-        sorted.sort((a, b) => order[a.priority] - order[b.priority]);
+      case "priority":
+        sorted.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
         break;
-      }
     }
     return sorted;
-  }, [allProjects, statusFilter, priorityFilter, favoritesOnly, searchText, sortMode]);
+  }, [allProjects, statusFilter, priorityFilter, favoritesOnly, searchText, sortMode, statuses]);
 
   const onToggleFavorite = async (project: ProjectModel) => {
     if (!currentUser) return;
@@ -255,6 +266,7 @@ export function ProjectListScreen() {
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value as SortMode)}
           >
+            <option value="status">{t("projects.sortStatus")}</option>
             <option value="updated">{t("projects.sortUpdated")}</option>
             <option value="deadline">{t("projects.sortDeadline")}</option>
             <option value="name">{t("projects.sortName")}</option>

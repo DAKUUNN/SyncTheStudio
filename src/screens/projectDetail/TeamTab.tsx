@@ -12,7 +12,11 @@ import {
   addHistoryEntry,
   ROLE_OWNER,
 } from "@/services/projectService";
-import { createInvitation, hasPendingInvitation } from "@/services/invitationService";
+import {
+  createInvitation,
+  hasPendingInvitation,
+  finalizeAcceptedInvitationsForOwner,
+} from "@/services/invitationService";
 import { Avatar, Modal, Spinner } from "@/components/ui";
 import { IconPlus, IconUsers, IconEdit, IconTrash, IconSearch, IconCheck } from "@/components/Icons";
 
@@ -49,6 +53,13 @@ export function TeamTab({
       void getProjectRolePresets(currentUser.id).then(setRolePresets);
     }
   }, [project.id, project.sharedWith.join(","), project.ownerId, currentUser?.id]);
+
+  useEffect(() => {
+    if (!isOwner || !currentUser) return;
+    void finalizeAcceptedInvitationsForOwner(currentUser.id, currentUser.username).then(() =>
+      onChanged()
+    );
+  }, [isOwner, currentUser?.id, project.id]);
 
   useEffect(() => {
     if (!inviteOpen || allUsers !== null) return;

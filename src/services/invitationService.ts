@@ -15,10 +15,10 @@ import {
   type CollectionReference,
   type Unsubscribe,
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "@/firebase";
+import { db } from "@/firebase";
 import { invitationFromDocument, type InvitationModel } from "@/models/types";
 import { createNotification } from "./notificationService";
+import { addToSharedProjects } from "./projectService";
 
 /** Port of invitation_service.dart — collection project_invitations */
 
@@ -109,7 +109,61 @@ export function watchPendingInvitations(
 }
 
 export async function acceptInvitation(invitationId: string): Promise<void> {
-  await httpsCallable(functions, "acceptProjectInvitation")({ invitationId });
+  const invitationRef = doc(invitationsCollection(), invitationId);
+  await updateDoc(invitationRef, {
+    status: "accepted",
+    respondedAt: Timestamp.fromDate(new Date()),
+  });
+}
+
+/**
+ * Only the project owner has the Firestore rights to write shared_projects/
+ * users/{ownerId}/projects, so acceptance is finalized here instead of by
+ * the invited user. Called opportunistically from the owner's client
+ * (AppLayout on login, TeamTab on mount) — self-healing, like the public
+ * share-link sync.
+ */
+export async function finalizeAcceptedInvitationsForOwner(
+  ownerId: string,
+  ownerName: string
+): Promise<void> {
+  try {
+    const snapshot = await getDocs(
+      query(
+        invitationsCollection(),
+        where("ownerId", "==", ownerId),
+        where("status", "==", "accepted")
+      )
+    );
+    for (const invitationDoc of snapshot.docs) {
+      const data = invitationDoc.data() as Record<string, unknown>;
+      const projectId = String(data.projectId ?? "");
+      const invitedUserId = String(data.invitedUserId ?? "");
+      if (!projectId || !invitedUserId) continue;
+      try {
+        await addToSharedProjects(projectId, ownerId, ownerName, invitedUserId);
+        await updateDoc(invitationDoc.ref, { status: "completed" });
+        try {
+          await createNotification({
+            senderId: ownerId,
+            senderName: ownerName,
+            title: "Einladung angenommen",
+            message: `${(data.invitedUserName as string | undefined) ?? "Ein Teammitglied"} hat jetzt Zugriff auf "${data.projectName ?? ""}".`,
+            type: "system",
+            priority: 0,
+            targetUserId: invitedUserId,
+            projectId,
+          });
+        } catch {
+          // best-effort
+        }
+      } catch {
+        // leave as "accepted" — retried next time this runs
+      }
+    }
+  } catch {
+    // best-effort
+  }
 }
 
 export async function declineInvitation(invitationId: string): Promise<void> {

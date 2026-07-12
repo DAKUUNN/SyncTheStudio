@@ -7,7 +7,10 @@ import {
   type NotificationPreferences,
 } from "@/models/types";
 import { watchNotifications } from "@/services/notificationService";
-import { watchPendingInvitations } from "@/services/invitationService";
+import {
+  watchPendingInvitations,
+  finalizeAcceptedInvitationsForOwner,
+} from "@/services/invitationService";
 import { getProjects } from "@/services/projectService";
 import { Avatar } from "./ui";
 import {
@@ -54,6 +57,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     const unsubInvitations = watchPendingInvitations(currentUser.id, (items) =>
       setInboxCount(items.length)
     );
+    void finalizeAcceptedInvitationsForOwner(currentUser.id, currentUser.username);
     return () => {
       unsubNotifications();
       unsubInvitations();
