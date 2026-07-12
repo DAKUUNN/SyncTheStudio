@@ -47,7 +47,7 @@ export function RegisterScreen() {
         `${t("register.successTitle")} ${t("register.successMessage")}`,
         "success"
       );
-      navigate("/login");
+      navigate("/");
     }
   };
 

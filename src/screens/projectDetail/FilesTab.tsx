@@ -31,6 +31,7 @@ import {
   clearPublicUploadPassword,
   disablePublicUploadLink,
 } from "@/services/masterService";
+import { hasPremiumStorage, premiumStorageMessage } from "@/services/planService";
 import { decryptBytes } from "@/lib/crypto";
 import { copyText } from "@/lib/clipboard";
 import { Modal, ProgressBar, formatDateTime } from "@/components/ui";
@@ -92,6 +93,10 @@ export function FilesTab({
 
   const uploadFiles = async (files: { bytes: Uint8Array; name: string }[]) => {
     if (!currentUser) return;
+    if (!hasPremiumStorage(currentUser)) {
+      showToast(premiumStorageMessage(), "warning");
+      return;
+    }
     for (const file of files) {
       try {
         setUploadProgress(0);
@@ -162,6 +167,10 @@ export function FilesTab({
 
   const onPickMaster = async () => {
     if (!currentUser) return;
+    if (!hasPremiumStorage(currentUser)) {
+      showToast(premiumStorageMessage(), "warning");
+      return;
+    }
     const selected = await openFileDialog({
       multiple: false,
       filters: [
@@ -221,6 +230,11 @@ export function FilesTab({
   };
 
   const onCreateShare = async () => {
+    if (!currentUser || !hasPremiumStorage(currentUser)) {
+      showToast(premiumStorageMessage(), "warning");
+      setShareModalOpen(false);
+      return;
+    }
     try {
       const next = sharePassword.trim()
         ? await setPublicSharePassword({
@@ -242,6 +256,10 @@ export function FilesTab({
   };
 
   const onCreateUploadLink = async () => {
+    if (!currentUser || !hasPremiumStorage(currentUser)) {
+      showToast(premiumStorageMessage(), "warning");
+      return;
+    }
     try {
       const next = await createOrUpdatePublicUploadLink({ project });
       setUploadLink(next);

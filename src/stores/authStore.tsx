@@ -171,6 +171,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       try {
         const result = await authService.createUser(params);
+        if (result) {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+          if (user) {
+            void authService.updateUserPresence(user.id, true);
+            startDeadlineWatcher(user.id);
+          }
+        }
         setIsLoading(false);
         return result.length > 0;
       } catch (e) {

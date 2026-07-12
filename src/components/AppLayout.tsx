@@ -203,7 +203,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 {currentUser.username}
               </div>
               <div className="text-xs text-muted truncate">
-                {currentUser.plan === "vip" ? "VIP" : currentUser.role === "admin" ? "Admin" : "Free"}
+                {currentUser.plan === "vip" ? "Premium" : currentUser.role === "admin" ? "Admin" : "Free"}
               </div>
             </div>
             <button

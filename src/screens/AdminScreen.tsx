@@ -189,7 +189,7 @@ function AdminUsers() {
                     }
                   >
                     <option value="free">Free</option>
-                    <option value="vip">VIP</option>
+                    <option value="vip">Premium</option>
                   </select>
                 </td>
                 <td>

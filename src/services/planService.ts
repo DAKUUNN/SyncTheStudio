@@ -36,5 +36,5 @@ export async function validateSharedProjectAcceptance(
 }
 
 export function premiumStorageMessage(): string {
-  return "Kontaktiert den Admin, oder wartet bis die App Ofiziell gelaunched ist.";
+  return "Das ist ein Premium-Feature (Datei-Uploads & öffentliche Links). Bitte kontaktiere einen Administrator für ein Upgrade.";
 }

@@ -84,7 +84,7 @@ export function ProfileScreen() {
   };
 
   const planLabel =
-    currentUser.role === "admin" ? "Admin" : currentUser.plan === "vip" ? "VIP" : "Free";
+    currentUser.role === "admin" ? "Admin" : currentUser.plan === "vip" ? "Premium" : "Free";
 
   return (
     <div className="content-narrow">

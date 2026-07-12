@@ -108,9 +108,6 @@ export async function createUser(params: {
       lastSeenAt: null,
     });
 
-    // Same behavior as the original app: sign out after registration so the
-    // user logs in explicitly.
-    await signOut(auth);
     return userId;
   } catch (e) {
     const err = e as FirebaseErrorLike;
