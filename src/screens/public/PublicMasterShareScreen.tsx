@@ -23,7 +23,10 @@ import {
   IconPlus,
   IconTrash,
   IconCheck,
+  IconVolume,
 } from "@/components/Icons";
+
+const VOLUME_STORAGE_KEY = "sts_master_review_volume";
 
 function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
@@ -53,6 +56,13 @@ function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+function loadStoredVolume(): number {
+  if (typeof window === "undefined") return 1;
+  const saved = window.localStorage.getItem(VOLUME_STORAGE_KEY);
+  const parsed = saved ? Number(saved) : NaN;
+  return Number.isFinite(parsed) ? Math.min(1, Math.max(0, parsed)) : 1;
 }
 
 export function PublicMasterShareScreen() {
@@ -133,49 +143,17 @@ export function PublicMasterShareScreen() {
     <div className="public-link-page">
       <div className="public-link-wrap">
         <div className="public-link-shell">
-          <aside className="public-link-hero">
-            <span className="public-link-kicker">Private Master Review</span>
-            <h1 className="public-link-title">Studio Master Link</h1>
-            <p className="public-link-subtitle">
-              Sicherer, dunkler Review-Space fuer freigegebene Master-Versionen. A/B
-              vergleichen, anhoeren und Revisionspunkte direkt einreichen.
-            </p>
-
-            {share && (
-              <div className="public-link-meta">
-                <span className="public-link-chip">{share.projectName}</span>
-                <span className="public-link-chip">{share.customerName || "Ohne Kunde"}</span>
-                <span className="public-link-chip">
-                  {share.allowDownload ? "Download aktiv" : "Preview only"}
-                </span>
-                <span className="public-link-chip">
-                  {share.hasPassword ? "Passwortgeschuetzt" : "Direkter Zugriff"}
-                </span>
-              </div>
-            )}
-
-            <div className="public-link-footnote">
-              SyncTheStudio Public Review · optimiert fuer sichere Audio-Freigaben
-            </div>
-          </aside>
-
           <section className="public-link-panel">
-            <div className="public-link-panel-header">
-              <div>
-                <div className="public-link-panel-title">Master Review</div>
-                <div className="public-link-panel-copy">
-                  {share?.expiresAt
-                    ? `Dieser Link laeuft am ${formatDateTime(share.expiresAt, lang)} ab.`
-                    : "Dieser Link hat aktuell kein Ablaufdatum."}
-                </div>
-              </div>
+            <div className="public-link-brand-row">
+              <img src="/logo.png" alt="" />
+              <span>SyncTheStudio</span>
             </div>
 
             {loading ? (
               <div className="public-link-loading">
                 <div>
                   <Spinner large />
-                  <div style={{ marginTop: 14 }}>Master-Seite wird geladen…</div>
+                  <div style={{ marginTop: 14 }}>Wird geladen…</div>
                 </div>
               </div>
             ) : error && !share ? (
@@ -191,63 +169,75 @@ export function PublicMasterShareScreen() {
                 </div>
               </div>
             ) : share ? (
-              <div className="public-link-stack">
-                {share.hasPassword && !accessGranted && (
-                  <div className="public-link-gate">
-                    <div className="public-link-panel-title" style={{ fontSize: "1.05rem", marginBottom: 8 }}>
-                      Passwort entsperren
+              <>
+                <h1 className="public-link-title">{share.projectName}</h1>
+                {share.customerName && (
+                  <div className="public-link-subtitle">{share.customerName}</div>
+                )}
+                {share.expiresAt && (
+                  <div className="public-link-panel-copy" style={{ marginTop: 10 }}>
+                    Dieser Link laeuft am {formatDateTime(share.expiresAt, lang)} ab.
+                  </div>
+                )}
+
+                <div className="public-link-stack" style={{ marginTop: 20 }}>
+                  {share.hasPassword && !accessGranted && (
+                    <div className="public-link-gate">
+                      <div className="public-link-panel-title" style={{ fontSize: "1.05rem", marginBottom: 8 }}>
+                        Passwort entsperren
+                      </div>
+                      <div className="public-link-panel-copy" style={{ marginBottom: 14 }}>
+                        Dieser Review-Link ist geschuetzt. Gib das vergebene Passwort ein,
+                        um die Master-Versionen zu sehen.
+                      </div>
+                      <label className="public-link-label">Passwort</label>
+                      <input
+                        className="public-link-input"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void onUnlock();
+                        }}
+                      />
+                      {error && <div className="public-link-alert" style={{ marginTop: 12 }}>{error}</div>}
+                      <div style={{ marginTop: 14 }}>
+                        <button
+                          className="public-link-button"
+                          disabled={verifying}
+                          onClick={() => void onUnlock()}
+                        >
+                          {verifying ? <Spinner /> : <IconLock />}
+                          Zugriff freischalten
+                        </button>
+                      </div>
                     </div>
-                    <div className="public-link-panel-copy" style={{ marginBottom: 14 }}>
-                      Dieser Review-Link ist geschuetzt. Gib das vergebene Passwort ein,
-                      um die Master-Versionen zu sehen.
+                  )}
+
+                  {accessGranted && masters.length === 0 && (
+                    <div className="public-link-empty">
+                      <div>
+                        <div className="public-link-empty-icon">
+                          <IconMusic />
+                        </div>
+                        <h2>Keine Master-Versionen vorhanden</h2>
+                        <div className="public-link-panel-copy" style={{ marginTop: 10 }}>
+                          Fuer dieses Projekt wurden noch keine freigegebenen Master hochgeladen.
+                        </div>
+                      </div>
                     </div>
-                    <label className="public-link-label">Passwort</label>
-                    <input
-                      className="public-link-input"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") void onUnlock();
-                      }}
+                  )}
+
+                  {accessGranted && masters.length > 0 && (
+                    <MasterCompareStudio
+                      projectId={share.projectId}
+                      masters={masters}
+                      allowDownload={share.allowDownload}
+                      authorNameDefault={share.customerName ?? ""}
                     />
-                    {error && <div className="public-link-alert" style={{ marginTop: 12 }}>{error}</div>}
-                    <div style={{ marginTop: 14 }}>
-                      <button
-                        className="public-link-button"
-                        disabled={verifying}
-                        onClick={() => void onUnlock()}
-                      >
-                        {verifying ? <Spinner /> : <IconLock />}
-                        Zugriff freischalten
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {accessGranted && masters.length === 0 && (
-                  <div className="public-link-empty">
-                    <div>
-                      <div className="public-link-empty-icon">
-                        <IconMusic />
-                      </div>
-                      <h2>Keine Master-Versionen vorhanden</h2>
-                      <div className="public-link-panel-copy" style={{ marginTop: 10 }}>
-                        Fuer dieses Projekt wurden noch keine freigegebenen Master hochgeladen.
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {accessGranted && masters.length > 0 && (
-                  <MasterCompareStudio
-                    projectId={share.projectId}
-                    masters={masters}
-                    allowDownload={share.allowDownload}
-                    authorNameDefault={share.customerName ?? ""}
-                  />
-                )}
-              </div>
+                  )}
+                </div>
+              </>
             ) : null}
           </section>
         </div>
@@ -267,9 +257,7 @@ function MasterCompareStudio({
   allowDownload: boolean;
   authorNameDefault: string;
 }) {
-  const [slotAId, setSlotAId] = useState(masters[0]?.id ?? "");
-  const [slotBId, setSlotBId] = useState(masters[1]?.id ?? masters[0]?.id ?? "");
-  const [activeSlot, setActiveSlot] = useState<"A" | "B">("A");
+  const [activeMasterId, setActiveMasterId] = useState(masters[0]?.id ?? "");
   const [urlCache, setUrlCache] = useState<Record<string, string>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -277,6 +265,7 @@ function MasterCompareStudio({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState<number>(loadStoredVolume);
 
   const [points, setPoints] = useState<string[]>([]);
   const [pointDraft, setPointDraft] = useState("");
@@ -289,10 +278,16 @@ function MasterCompareStudio({
   const urlCacheRef = useRef<Record<string, string>>({});
   const pendingSeekRef = useRef<number | null>(null);
   const wasPlayingRef = useRef(false);
+  const volumeRef = useRef(volume);
 
   useEffect(() => {
     urlCacheRef.current = urlCache;
   }, [urlCache]);
+
+  useEffect(() => {
+    volumeRef.current = volume;
+    if (audioRef.current) audioRef.current.volume = volume;
+  }, [volume]);
 
   useEffect(
     () => () => {
@@ -301,13 +296,10 @@ function MasterCompareStudio({
     []
   );
 
-  const activeMasterId = activeSlot === "A" ? slotAId : slotBId;
   const activeMaster = useMemo(
     () => masters.find((m) => m.id === activeMasterId) ?? null,
     [masters, activeMasterId]
   );
-  const slotAMaster = useMemo(() => masters.find((m) => m.id === slotAId) ?? null, [masters, slotAId]);
-  const slotBMaster = useMemo(() => masters.find((m) => m.id === slotBId) ?? null, [masters, slotBId]);
 
   const loadMaster = async (masterId: string) => {
     if (!masterId || urlCacheRef.current[masterId]) return;
@@ -328,9 +320,9 @@ function MasterCompareStudio({
   };
 
   useEffect(() => {
-    if (slotAId) void loadMaster(slotAId);
+    if (activeMasterId) void loadMaster(activeMasterId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slotAId]);
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -341,14 +333,13 @@ function MasterCompareStudio({
     }
   }, [activeMasterId, urlCache]);
 
-  const switchToSlot = async (slot: "A" | "B") => {
-    if (slot === activeSlot) return;
+  const switchToVersion = async (masterId: string) => {
+    if (masterId === activeMasterId) return;
     const audio = audioRef.current;
     wasPlayingRef.current = !!audio && !audio.paused;
     pendingSeekRef.current = audio ? audio.currentTime : 0;
-    setActiveSlot(slot);
-    const targetId = slot === "A" ? slotAId : slotBId;
-    await loadMaster(targetId);
+    setActiveMasterId(masterId);
+    await loadMaster(masterId);
   };
 
   const togglePlay = () => {
@@ -363,6 +354,11 @@ function MasterCompareStudio({
     if (!audio) return;
     audio.currentTime = value;
     setCurrentTime(value);
+  };
+
+  const onVolumeChange = (value: number) => {
+    setVolume(value);
+    window.localStorage.setItem(VOLUME_STORAGE_KEY, String(value));
   };
 
   const onDownload = async (master: MasterVersionModel) => {
@@ -430,6 +426,7 @@ function MasterCompareStudio({
         onPause={() => setIsPlaying(false)}
         onLoadedMetadata={(e) => {
           const audio = e.currentTarget;
+          audio.volume = volumeRef.current;
           if (pendingSeekRef.current !== null) {
             audio.currentTime = Math.min(pendingSeekRef.current, audio.duration || pendingSeekRef.current);
             pendingSeekRef.current = null;
@@ -442,50 +439,16 @@ function MasterCompareStudio({
       />
 
       <div className="ab-studio">
-        <div className="ab-slots">
-          <div className={`ab-slot${activeSlot === "A" ? " active" : ""}`}>
-            <button className="ab-slot-toggle" onClick={() => void switchToSlot("A")}>
-              <span className="ab-slot-label">A</span>
-              {slotAMaster?.versionName ?? "—"}
-            </button>
-            <select
-              className="public-link-select"
-              value={slotAId}
-              onChange={(e) => {
-                setSlotAId(e.target.value);
-                void loadMaster(e.target.value);
-              }}
+        <div className="ab-version-list">
+          {masters.map((m) => (
+            <button
+              key={m.id}
+              className={`ab-version-pill${m.id === activeMasterId ? " active" : ""}`}
+              onClick={() => void switchToVersion(m.id)}
             >
-              {masters.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.versionName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="ab-vs">VS</div>
-
-          <div className={`ab-slot${activeSlot === "B" ? " active" : ""}`}>
-            <button className="ab-slot-toggle" onClick={() => void switchToSlot("B")}>
-              <span className="ab-slot-label">B</span>
-              {slotBMaster?.versionName ?? "—"}
+              {m.versionName}
             </button>
-            <select
-              className="public-link-select"
-              value={slotBId}
-              onChange={(e) => {
-                setSlotBId(e.target.value);
-                void loadMaster(e.target.value);
-              }}
-            >
-              {masters.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.versionName}
-                </option>
-              ))}
-            </select>
-          </div>
+          ))}
         </div>
 
         <div className="ab-player">
@@ -499,9 +462,6 @@ function MasterCompareStudio({
                 {isPlaying ? <IconPause /> : <IconPlay />}
               </button>
               <div className="ab-player-body">
-                <div className="ab-player-title">
-                  {activeMaster?.originalFileName ?? "Kein Master ausgewaehlt"}
-                </div>
                 <input
                   className="ab-seek"
                   type="range"
@@ -516,9 +476,21 @@ function MasterCompareStudio({
                   <span>{formatTime(duration)}</span>
                 </div>
               </div>
+              <div className="ab-volume">
+                <IconVolume style={{ width: 15, height: 15 }} />
+                <input
+                  className="ab-volume-slider"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={volume}
+                  onChange={(e) => onVolumeChange(Number(e.target.value))}
+                />
+              </div>
               {allowDownload && activeMaster && (
                 <button
-                  className="public-link-button-secondary"
+                  className="public-link-button-secondary ab-download-btn"
                   disabled={downloadingId === activeMaster.id}
                   onClick={() => void onDownload(activeMaster)}
                   title="Aktive Version herunterladen"
@@ -538,8 +510,7 @@ function MasterCompareStudio({
           Revisionsliste
         </div>
         <div className="public-link-panel-copy" style={{ marginBottom: 12 }}>
-          Trage jeden gewuenschten Aenderungspunkt einzeln ein. Beim Absenden landen sie
-          direkt als Aufgaben im Projekt.
+          Ein Punkt pro Zeile — trag ein, was geaendert werden soll.
         </div>
 
         <div className="field" style={{ marginBottom: 10 }}>
@@ -552,10 +523,10 @@ function MasterCompareStudio({
           />
         </div>
 
-        <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+        <div className="row ab-add-point-row" style={{ gap: 8, marginBottom: 12 }}>
           <input
             className="public-link-input"
-            style={{ flex: 1 }}
+            style={{ flex: 1, minWidth: 0 }}
             placeholder="z. B. Hall bei 00:56 reinpacken"
             value={pointDraft}
             onChange={(e) => setPointDraft(e.target.value)}
@@ -584,9 +555,8 @@ function MasterCompareStudio({
         {submitError && <div className="public-link-alert" style={{ marginTop: 10 }}>{submitError}</div>}
         {submitted && (
           <div className="public-link-success" style={{ marginTop: 10 }}>
-            <IconCheck style={{ width: 13, height: 13, verticalAlign: -2 }} /> Revision
-            gesendet — {points.length === 0 ? "die Punkte sind" : ""} jetzt im Projekt als
-            Aufgaben sichtbar.
+            <IconCheck style={{ width: 13, height: 13, verticalAlign: -2 }} /> Danke! Deine
+            Revision wurde gesendet.
           </div>
         )}
 

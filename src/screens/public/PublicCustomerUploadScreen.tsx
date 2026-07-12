@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
-import { useI18n } from "@/i18n";
 import { getPublicLinkToken } from "@/lib/publicLinkUrl";
 import {
   getPublicCustomerUploadByToken,
@@ -7,11 +6,12 @@ import {
   verifyPublicLinkPassword,
   type PublicCustomerUploadAccess,
 } from "@/services/publicLinkService";
-import { Spinner } from "@/components/ui";
+import { Spinner, ProgressBar } from "@/components/ui";
 import { IconFile, IconLink, IconLock, IconUpload } from "@/components/Icons";
 
+const MAX_FILE_SIZE = 750 * 1024 * 1024;
+
 export function PublicCustomerUploadScreen() {
-  const { lang } = useI18n();
   const [linkData, setLinkData] = useState<PublicCustomerUploadAccess | null>(null);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
@@ -86,11 +86,25 @@ export function PublicCustomerUploadScreen() {
     }
   };
 
-  const onSelectFiles = (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    setSelectedFiles(files);
+  const acceptFiles = (files: File[]) => {
+    const accepted: File[] = [];
+    const rejections: string[] = [];
+    for (const file of files) {
+      if (file.size === 0) {
+        rejections.push(`„${file.name}" ist leer und wurde nicht hinzugefuegt.`);
+      } else if (file.size > MAX_FILE_SIZE) {
+        rejections.push(`„${file.name}" ist zu gross (max. 750 MB) und wurde nicht hinzugefuegt.`);
+      } else {
+        accepted.push(file);
+      }
+    }
+    setSelectedFiles(accepted);
     setSuccessMessage(null);
-    setError(null);
+    setError(rejections.length > 0 ? rejections.join(" ") : null);
+  };
+
+  const onSelectFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    acceptFiles(Array.from(event.target.files ?? []));
   };
 
   const onDropFiles = (event: DragEvent<HTMLLabelElement>) => {
@@ -98,9 +112,7 @@ export function PublicCustomerUploadScreen() {
     setDragActive(false);
     const files = Array.from(event.dataTransfer.files ?? []);
     if (files.length === 0) return;
-    setSelectedFiles(files);
-    setSuccessMessage(null);
-    setError(null);
+    acceptFiles(files);
   };
 
   const onUpload = async () => {
@@ -141,50 +153,25 @@ export function PublicCustomerUploadScreen() {
     }
   };
 
+  const heading = linkData
+    ? `${linkData.customerName || "Kunde"} – ${linkData.projectName} STEMS Upload`
+    : "STEMS Upload";
+
   return (
     <div className="public-link-page">
       <div className="public-link-wrap">
         <div className="public-link-shell">
-          <aside className="public-link-hero">
-            <span className="public-link-kicker">Client Upload Portal</span>
-            <h1 className="public-link-title">Projektdateien hochladen</h1>
-            <p className="public-link-subtitle">
-              Ein dunkler, direkter Upload-Space fuer Kunden-Edits, Stems, Referenzen
-              und neue Deliverables. Alles landet direkt im zugehoerigen Projekt.
-            </p>
-
-            {linkData && (
-              <div className="public-link-meta">
-                <span className="public-link-chip">{linkData.projectName}</span>
-                <span className="public-link-chip">{linkData.customerName || "Ohne Kunde"}</span>
-                <span className="public-link-chip">
-                  {linkData.hasPassword ? "Passwortgeschuetzt" : "Offener Upload"}
-                </span>
-                <span className="public-link-chip">Sprache: {lang.toUpperCase()}</span>
-              </div>
-            )}
-
-            <div className="public-link-footnote">
-              Dateien werden direkt in SyncTheStudio dem Projekt zugeordnet.
-            </div>
-          </aside>
-
           <section className="public-link-panel">
-            <div className="public-link-panel-header">
-              <div>
-                <div className="public-link-panel-title">Customer Upload</div>
-                <div className="public-link-panel-copy">
-                  Sende neue Dateien gesammelt oder einzeln. Mehrere Uploads werden sauber
-                  nacheinander verarbeitet.
-                </div>
-              </div>
+            <div className="public-link-brand-row">
+              <img src="/logo.png" alt="" />
+              <span>SyncTheStudio</span>
             </div>
 
             {loading ? (
               <div className="public-link-loading">
                 <div>
                   <Spinner large />
-                  <div style={{ marginTop: 14 }}>Upload-Seite wird geladen…</div>
+                  <div style={{ marginTop: 14 }}>Wird geladen…</div>
                 </div>
               </div>
             ) : error && !linkData ? (
@@ -200,130 +187,137 @@ export function PublicCustomerUploadScreen() {
                 </div>
               </div>
             ) : linkData ? (
-              <div className="public-link-stack">
-                {linkData.hasPassword && !accessGranted && (
-                  <div className="public-link-gate">
-                    <div className="public-link-panel-title" style={{ fontSize: "1.05rem", marginBottom: 8 }}>
-                      Passwort entsperren
+              <>
+                <h1 className="public-link-title">{heading}</h1>
+
+                <div className="public-link-stack" style={{ marginTop: 20 }}>
+                  {linkData.hasPassword && !accessGranted && (
+                    <div className="public-link-gate">
+                      <div className="public-link-panel-title" style={{ fontSize: "1.05rem", marginBottom: 8 }}>
+                        Passwort entsperren
+                      </div>
+                      <div className="public-link-panel-copy" style={{ marginBottom: 14 }}>
+                        Dieser Upload-Link ist geschuetzt. Gib zuerst das vergebene Passwort ein.
+                      </div>
+                      <label className="public-link-label">Passwort</label>
+                      <input
+                        className="public-link-input"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void onUnlock();
+                        }}
+                      />
+                      {error && <div className="public-link-alert" style={{ marginTop: 12 }}>{error}</div>}
+                      <div style={{ marginTop: 14 }}>
+                        <button
+                          className="public-link-button"
+                          disabled={verifying}
+                          onClick={() => void onUnlock()}
+                        >
+                          {verifying ? <Spinner /> : <IconLock />}
+                          Zugriff freischalten
+                        </button>
+                      </div>
                     </div>
-                    <div className="public-link-panel-copy" style={{ marginBottom: 14 }}>
-                      Dieser Upload-Link ist geschuetzt. Gib zuerst das vergebene Passwort ein.
-                    </div>
-                    <label className="public-link-label">Passwort</label>
-                    <input
-                      className="public-link-input"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") void onUnlock();
-                      }}
-                    />
-                    {error && <div className="public-link-alert" style={{ marginTop: 12 }}>{error}</div>}
-                    <div style={{ marginTop: 14 }}>
-                      <button
-                        className="public-link-button"
-                        disabled={verifying}
-                        onClick={() => void onUnlock()}
+                  )}
+
+                  {accessGranted && error && <div className="public-link-alert">{error}</div>}
+                  {accessGranted && successMessage && (
+                    <div className="public-link-success">{successMessage}</div>
+                  )}
+
+                  {accessGranted && (
+                    <>
+                      <label
+                        className="public-link-dropzone"
+                        style={
+                          dragActive
+                            ? {
+                                borderColor: "rgb(152 122 255 / 0.78)",
+                                boxShadow: "0 0 0 4px rgb(126 95 255 / 0.12)",
+                              }
+                            : undefined
+                        }
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          setDragActive(true);
+                        }}
+                        onDragLeave={() => setDragActive(false)}
+                        onDrop={onDropFiles}
                       >
-                        {verifying ? <Spinner /> : <IconLock />}
-                        Zugriff freischalten
-                      </button>
-                    </div>
-                  </div>
-                )}
+                        <input hidden type="file" multiple onChange={onSelectFiles} />
+                        <div className="public-link-empty-icon" style={{ marginBottom: 12 }}>
+                          <IconUpload />
+                        </div>
+                        <div className="public-link-panel-title" style={{ fontSize: "1.05rem" }}>
+                          Dateien ziehen oder auswaehlen
+                        </div>
+                        <div className="public-link-panel-copy" style={{ marginTop: 8 }}>
+                          Klicke in diese Flaeche oder ziehe mehrere Dateien direkt hier hinein.
+                        </div>
+                      </label>
 
-                {accessGranted && error && <div className="public-link-alert">{error}</div>}
-                {accessGranted && successMessage && (
-                  <div className="public-link-success">{successMessage}</div>
-                )}
+                      {selectedFiles.length > 0 ? (
+                        <div className="public-link-preview">
+                          <div className="public-link-panel-header" style={{ marginBottom: 14 }}>
+                            <div>
+                              <div className="public-link-panel-title" style={{ fontSize: "1.05rem" }}>
+                                Ausgewaehlte Dateien
+                              </div>
+                              <div className="public-link-panel-copy">
+                                {selectedFiles.length} Datei(en) · Gesamtgroesse {totalSizeLabel}
+                              </div>
+                            </div>
+                          </div>
 
-                {accessGranted && (
-                  <>
-                    <label
-                      className="public-link-dropzone"
-                      style={
-                        dragActive
-                          ? {
-                              borderColor: "rgb(152 122 255 / 0.78)",
-                              boxShadow: "0 0 0 4px rgb(126 95 255 / 0.12)",
-                            }
-                          : undefined
-                      }
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        setDragActive(true);
-                      }}
-                      onDragLeave={() => setDragActive(false)}
-                      onDrop={onDropFiles}
-                    >
-                      <input hidden type="file" multiple onChange={onSelectFiles} />
-                      <div className="public-link-empty-icon" style={{ marginBottom: 12 }}>
-                        <IconUpload />
-                      </div>
-                      <div className="public-link-panel-title" style={{ fontSize: "1.05rem" }}>
-                        Dateien ziehen oder auswaehlen
-                      </div>
-                      <div className="public-link-panel-copy" style={{ marginTop: 8 }}>
-                        Klicke in diese Flaeche oder ziehe mehrere Dateien direkt hier hinein.
-                      </div>
-                    </label>
-
-                    {selectedFiles.length > 0 ? (
-                      <div className="public-link-preview">
-                        <div className="public-link-panel-header" style={{ marginBottom: 14 }}>
+                          <div className="public-link-file-list">
+                            {selectedFiles.map((file) => (
+                              <div key={`${file.name}-${file.size}`} className="public-link-file-row">
+                                <span>{file.name}</span>
+                                <span>{Math.max(1, Math.round(file.size / 1024))} KB</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="public-link-empty">
                           <div>
-                            <div className="public-link-panel-title" style={{ fontSize: "1.05rem" }}>
-                              Ausgewaehlte Dateien
+                            <div className="public-link-empty-icon">
+                              <IconFile />
                             </div>
-                            <div className="public-link-panel-copy">
-                              {selectedFiles.length} Datei(en) · Gesamtgroesse {totalSizeLabel}
+                            <h2>Noch keine Dateien ausgewaehlt</h2>
+                            <div className="public-link-panel-copy" style={{ marginTop: 10 }}>
+                              Waehle Dateien aus oder ziehe sie in den Upload-Bereich.
                             </div>
                           </div>
                         </div>
+                      )}
 
-                        <div className="public-link-file-list">
-                          {selectedFiles.map((file) => (
-                            <div key={`${file.name}-${file.size}`} className="public-link-file-row">
-                              <span>{file.name}</span>
-                              <span>{Math.max(1, Math.round(file.size / 1024))} KB</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="public-link-empty">
+                      {progress !== null && (
                         <div>
-                          <div className="public-link-empty-icon">
-                            <IconFile />
-                          </div>
-                          <h2>Noch keine Dateien ausgewaehlt</h2>
-                          <div className="public-link-panel-copy" style={{ marginTop: 10 }}>
-                            Waehle Dateien aus oder ziehe sie in den Upload-Bereich.
+                          <ProgressBar value={progress / 100} />
+                          <div className="public-link-panel-copy" style={{ marginTop: 6 }}>
+                            {progress}%
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {progress !== null && (
-                      <div className="public-link-panel-copy">
-                        Upload-Fortschritt: {progress}%
+                      <div className="public-link-actions">
+                        <button
+                          className="public-link-button"
+                          disabled={uploading || selectedFiles.length === 0}
+                          onClick={() => void onUpload()}
+                        >
+                          {uploading ? <Spinner /> : <IconUpload />}
+                          Dateien hochladen
+                        </button>
                       </div>
-                    )}
-
-                    <div className="public-link-actions">
-                      <button
-                        className="public-link-button"
-                        disabled={uploading || selectedFiles.length === 0}
-                        onClick={() => void onUpload()}
-                      >
-                        {uploading ? <Spinner /> : <IconUpload />}
-                        Dateien hochladen
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+                    </>
+                  )}
+                </div>
+              </>
             ) : null}
           </section>
         </div>
