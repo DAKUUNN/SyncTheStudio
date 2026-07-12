@@ -776,6 +776,7 @@
   "tasks.addSubtask": "Add subtask…",
   "tasks.commentHint": "Write a comment…",
   "tasks.comments": "Comments",
+  "tasks.completedSection": "Completed ({count})",
   "tasks.created": "Task created",
   "tasks.descriptionLabel": "Description",
   "tasks.dueDatePrompt": "Due date (YYYY-MM-DD, empty = remove):",

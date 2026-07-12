@@ -776,6 +776,7 @@
   "tasks.addSubtask": "Unteraufgabe hinzufügen…",
   "tasks.commentHint": "Kommentar schreiben…",
   "tasks.comments": "Kommentare",
+  "tasks.completedSection": "Erledigt ({count})",
   "tasks.created": "Aufgabe erstellt",
   "tasks.descriptionLabel": "Beschreibung",
   "tasks.dueDatePrompt": "Fälligkeitsdatum (JJJJ-MM-TT, leer = entfernen):",

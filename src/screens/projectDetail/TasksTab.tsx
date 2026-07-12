@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
@@ -26,6 +26,7 @@ import {
   IconChevronRight,
   IconMessage,
   IconCalendar,
+  IconSearch,
 } from "@/components/Icons";
 
 export function TasksTab({ project }: { project: ProjectModel }) {
@@ -42,6 +43,8 @@ export function TasksTab({ project }: { project: ProjectModel }) {
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dueDateTask, setDueDateTask] = useState<TaskModel | null>(null);
   const [dueDateValue, setDueDateValue] = useState("");
+  const [search, setSearch] = useState("");
+  const [showCompleted, setShowCompleted] = useState(true);
 
   useEffect(() => {
     const unsubscribe = watchTasks(project.id, setTasks);
@@ -50,6 +53,19 @@ export function TasksTab({ project }: { project: ProjectModel }) {
 
   const completedCount = tasks.filter((task) => task.isCompleted).length;
   const progress = tasks.length > 0 ? completedCount / tasks.length : 0;
+
+  const filteredTasks = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return tasks;
+    return tasks.filter(
+      (task) =>
+        task.title.toLowerCase().includes(q) ||
+        (task.description?.toLowerCase().includes(q) ?? false)
+    );
+  }, [tasks, search]);
+
+  const openTasks = filteredTasks.filter((task) => !task.isCompleted);
+  const doneTasks = filteredTasks.filter((task) => task.isCompleted);
 
   const onAddTask = async () => {
     if (!currentUser || !newTitle.trim()) return;
@@ -91,6 +107,134 @@ export function TasksTab({ project }: { project: ProjectModel }) {
     await reorderTasks(project.id, current);
   };
 
+  const renderTaskRow = (task: TaskModel) => {
+    const isExpanded = expanded.has(task.id);
+    const subCompleted = task.subtasks.filter((s) => s.isCompleted).length;
+    return (
+      <div
+        key={task.id}
+        style={{ borderBottom: "1px solid var(--border)" }}
+        draggable
+        onDragStart={() => setDragTaskId(task.id)}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={() => void onDropOnTask(task)}
+      >
+        <div className="list-row" style={{ borderBottom: "none" }}>
+          <input
+            type="checkbox"
+            checked={task.isCompleted}
+            onChange={(e) => void toggleTask(project.id, task.id, e.target.checked)}
+          />
+          <div
+            className="grow"
+            style={{ minWidth: 0, cursor: "pointer" }}
+            onClick={() => toggleExpanded(task.id)}
+          >
+            <div
+              className="text-small row"
+              style={{
+                fontWeight: 600,
+                gap: 6,
+                textDecoration: task.isCompleted ? "line-through" : "none",
+                opacity: task.isCompleted ? 0.55 : 1,
+              }}
+            >
+              {task.title}
+              {task.subtasks.length > 0 && (
+                <span className="text-xs text-faint">
+                  {subCompleted}/{task.subtasks.length}
+                </span>
+              )}
+            </div>
+            {task.description && (
+              <div className="text-xs text-muted truncate">{task.description}</div>
+            )}
+          </div>
+          {task.dueDate && (
+            <span
+              className="text-xs"
+              style={{
+                color:
+                  !task.isCompleted && task.dueDate.getTime() < Date.now()
+                    ? "var(--danger)"
+                    : "var(--text-muted)",
+              }}
+            >
+              <IconCalendar style={{ width: 11, height: 11, verticalAlign: -1 }} />{" "}
+              {formatDate(task.dueDate, lang)}
+            </span>
+          )}
+          <button
+            className="icon-btn"
+            title={t("tasks.comments")}
+            onClick={() => setCommentsTask(task)}
+          >
+            <IconMessage />
+          </button>
+          <button
+            className="icon-btn"
+            title={t("tasks.setDueDate")}
+            onClick={() => {
+              // window.prompt is not supported in Tauri WebViews — modal instead.
+              setDueDateValue(
+                task.dueDate
+                  ? task.dueDate.toISOString().slice(0, 10)
+                  : new Date().toISOString().slice(0, 10)
+              );
+              setDueDateTask(task);
+            }}
+          >
+            <IconCalendar />
+          </button>
+          <button
+            className="icon-btn"
+            title={t("common.delete")}
+            onClick={() => void deleteTask(project.id, task.id)}
+          >
+            <IconTrash />
+          </button>
+          <button className="icon-btn" onClick={() => toggleExpanded(task.id)}>
+            {isExpanded ? <IconChevronDown /> : <IconChevronRight />}
+          </button>
+        </div>
+
+        {isExpanded && (
+          <div style={{ padding: "0 16px 12px 46px" }}>
+            {task.subtasks.map((subtask) => (
+              <div key={subtask.id} className="row" style={{ padding: "4px 0" }}>
+                <input
+                  type="checkbox"
+                  checked={subtask.isCompleted}
+                  onChange={() => void toggleSubtask(project.id, task.id, subtask.id)}
+                />
+                <span
+                  className="grow text-small"
+                  style={{
+                    textDecoration: subtask.isCompleted ? "line-through" : "none",
+                    opacity: subtask.isCompleted ? 0.55 : 1,
+                  }}
+                >
+                  {subtask.title}
+                </span>
+                <button
+                  className="icon-btn"
+                  style={{ width: 24, height: 24 }}
+                  onClick={() => void deleteSubtask(project.id, task.id, subtask.id)}
+                >
+                  <IconTrash style={{ width: 13, height: 13 }} />
+                </button>
+              </div>
+            ))}
+            <SubtaskInput
+              placeholder={t("tasks.addSubtask")}
+              onSubmit={(title) => void addSubtask(project.id, task.id, title)}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="content-narrow" style={{ margin: 0, maxWidth: 780 }}>
       <div className="card">
@@ -110,146 +254,65 @@ export function TasksTab({ project }: { project: ProjectModel }) {
           </button>
         </div>
 
+        {tasks.length > 0 && (
+          <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ position: "relative" }}>
+              <IconSearch
+                style={{
+                  position: "absolute",
+                  left: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 14,
+                  height: 14,
+                  color: "var(--text-faint)",
+                }}
+              />
+              <input
+                className="input"
+                style={{ paddingLeft: 32, maxWidth: 320 }}
+                placeholder={`${t("search.title")}…`}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+
         {tasks.length === 0 ? (
           <div className="empty-state">
             <IconCheckCircle />
             <h3>{t("tasks.emptyTitle")}</h3>
             <div className="text-small text-muted">{t("tasks.emptySubtitle")}</div>
           </div>
+        ) : filteredTasks.length === 0 ? (
+          <div className="text-small text-muted" style={{ padding: "20px 16px" }}>
+            {t("search.noResults")}
+          </div>
         ) : (
-          tasks.map((task) => {
-            const isExpanded = expanded.has(task.id);
-            const subCompleted = task.subtasks.filter((s) => s.isCompleted).length;
-            return (
-              <div
-                key={task.id}
-                style={{ borderBottom: "1px solid var(--border)" }}
-                draggable
-                onDragStart={() => setDragTaskId(task.id)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => void onDropOnTask(task)}
-              >
-                <div className="list-row" style={{ borderBottom: "none" }}>
-                  <input
-                    type="checkbox"
-                    checked={task.isCompleted}
-                    onChange={(e) =>
-                      void toggleTask(project.id, task.id, e.target.checked)
-                    }
-                  />
-                  <div
-                    className="grow"
-                    style={{ minWidth: 0, cursor: "pointer" }}
-                    onClick={() => toggleExpanded(task.id)}
-                  >
-                    <div
-                      className="text-small row"
-                      style={{
-                        fontWeight: 600,
-                        gap: 6,
-                        textDecoration: task.isCompleted ? "line-through" : "none",
-                        opacity: task.isCompleted ? 0.55 : 1,
-                      }}
-                    >
-                      {task.title}
-                      {task.subtasks.length > 0 && (
-                        <span className="text-xs text-faint">
-                          {subCompleted}/{task.subtasks.length}
-                        </span>
-                      )}
-                    </div>
-                    {task.description && (
-                      <div className="text-xs text-muted truncate">{task.description}</div>
-                    )}
-                  </div>
-                  {task.dueDate && (
-                    <span
-                      className="text-xs"
-                      style={{
-                        color:
-                          !task.isCompleted && task.dueDate.getTime() < Date.now()
-                            ? "var(--danger)"
-                            : "var(--text-muted)",
-                      }}
-                    >
-                      <IconCalendar style={{ width: 11, height: 11, verticalAlign: -1 }} />{" "}
-                      {formatDate(task.dueDate, lang)}
-                    </span>
-                  )}
-                  <button
-                    className="icon-btn"
-                    title={t("tasks.comments")}
-                    onClick={() => setCommentsTask(task)}
-                  >
-                    <IconMessage />
-                  </button>
-                  <button
-                    className="icon-btn"
-                    title={t("tasks.setDueDate")}
-                    onClick={() => {
-                      // window.prompt is not supported in Tauri WebViews — modal instead.
-                      setDueDateValue(
-                        task.dueDate
-                          ? task.dueDate.toISOString().slice(0, 10)
-                          : new Date().toISOString().slice(0, 10)
-                      );
-                      setDueDateTask(task);
-                    }}
-                  >
-                    <IconCalendar />
-                  </button>
-                  <button
-                    className="icon-btn"
-                    title={t("common.delete")}
-                    onClick={() => void deleteTask(project.id, task.id)}
-                  >
-                    <IconTrash />
-                  </button>
-                  <button className="icon-btn" onClick={() => toggleExpanded(task.id)}>
-                    {isExpanded ? <IconChevronDown /> : <IconChevronRight />}
-                  </button>
-                </div>
-
-                {isExpanded && (
-                  <div style={{ padding: "0 16px 12px 46px" }}>
-                    {task.subtasks.map((subtask) => (
-                      <div key={subtask.id} className="row" style={{ padding: "4px 0" }}>
-                        <input
-                          type="checkbox"
-                          checked={subtask.isCompleted}
-                          onChange={() =>
-                            void toggleSubtask(project.id, task.id, subtask.id)
-                          }
-                        />
-                        <span
-                          className="grow text-small"
-                          style={{
-                            textDecoration: subtask.isCompleted ? "line-through" : "none",
-                            opacity: subtask.isCompleted ? 0.55 : 1,
-                          }}
-                        >
-                          {subtask.title}
-                        </span>
-                        <button
-                          className="icon-btn"
-                          style={{ width: 24, height: 24 }}
-                          onClick={() =>
-                            void deleteSubtask(project.id, task.id, subtask.id)
-                          }
-                        >
-                          <IconTrash style={{ width: 13, height: 13 }} />
-                        </button>
-                      </div>
-                    ))}
-                    <SubtaskInput
-                      placeholder={t("tasks.addSubtask")}
-                      onSubmit={(title) => void addSubtask(project.id, task.id, title)}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })
+          <>
+            {openTasks.map(renderTaskRow)}
+            {doneTasks.length > 0 && (
+              <>
+                <button
+                  className="row"
+                  style={{
+                    width: "100%",
+                    padding: "10px 16px",
+                    background: "var(--surface-2)",
+                    fontWeight: 600,
+                    fontSize: "0.8125rem",
+                    color: "var(--text-muted)",
+                  }}
+                  onClick={() => setShowCompleted((v) => !v)}
+                >
+                  {showCompleted ? <IconChevronDown /> : <IconChevronRight />}
+                  {t("tasks.completedSection", { count: doneTasks.length })}
+                </button>
+                {showCompleted && doneTasks.map(renderTaskRow)}
+              </>
+            )}
+          </>
         )}
       </div>
 
