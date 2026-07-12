@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "SyncTheStudio",
+  "version": "5.0.0",
+  "identifier": "com.daakunSTS.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "SyncTheStudio",
+        "width": 1360,
+        "height": 860,
+        "minWidth": 980,
+        "minHeight": 640,
+        "center": true,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Productivity",
+    "shortDescription": "Mix & Master Projektmanagement",
+    "longDescription": "SyncTheStudio - Projektmanagement für Mixing- und Mastering-Studios: Projekte, Kunden, Aufgaben, Chat, Zeiterfassung, Master-Versionen und Team-Kollaboration."
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/DAKUUNN/SyncTheStudio/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVBMjQxQTc5MTg3NjM5QkIKUldTN09YWVllUm9rV3JkbHd6a01mVXViTnd0UWZtSTVORG9JOWpoZXFVc1NnTi95ckpIc3hZeHEK"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SyncTheStudio</title>
+    <script>
+      // Apply the stored (or default dark) theme before first paint to avoid a light flash.
+      (function () {
+        try {
+          var raw = localStorage.getItem("user_theme_profile_v1");
+          var mode = raw ? (JSON.parse(raw).themeMode || "dark") : "dark";
+          var dark =
+            mode === "dark" ||
+            (mode === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          if (dark) {
+            document.documentElement.style.setProperty("--user-background", "#0A0A0B");
+            document.documentElement.style.setProperty("--user-text", "#EDEDEF");
+            document.documentElement.style.backgroundColor = "#0A0A0B";
+          }
+        } catch (e) {
+          document.documentElement.dataset.theme = "dark";
+          document.documentElement.style.backgroundColor = "#0A0A0B";
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

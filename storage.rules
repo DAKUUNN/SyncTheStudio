@@ -1,0 +1,76 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return firestore.get(/databases/(default)/documents/users/$(uid));
+    }
+
+    function userExists(uid) {
+      return firestore.exists(/databases/(default)/documents/users/$(uid));
+    }
+
+    function isAdmin() {
+      return signedIn() && userExists(request.auth.uid) && userDoc(request.auth.uid).data.role == 'admin';
+    }
+
+    function canAccessProject(projectId) {
+      return signedIn() && (
+        isAdmin() ||
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)/projects/$(projectId)) ||
+        (
+          firestore.exists(/databases/(default)/documents/shared_projects/$(projectId)) &&
+          (
+            firestore.get(/databases/(default)/documents/shared_projects/$(projectId)).data.ownerId == request.auth.uid ||
+            request.auth.uid in firestore.get(/databases/(default)/documents/shared_projects/$(projectId)).data.sharedWith
+          )
+        )
+      );
+    }
+
+    // Public share links: gated purely by a boolean flag on the (otherwise
+    // private) `projects/{projectId}` Firestore document. `firestore.get()`
+    // here is a Storage-rules-internal lookup for rule evaluation only — it
+    // never exposes the document's contents to the requesting client, so
+    // this cannot leak the project's contentKey or any other private field.
+    function hasActiveMasterShare(projectId) {
+      return firestore.exists(/databases/(default)/documents/projects/$(projectId)) &&
+        firestore.get(/databases/(default)/documents/projects/$(projectId)).data.masterShareActive == true;
+    }
+
+    function hasActiveCustomerUpload(projectId) {
+      return firestore.exists(/databases/(default)/documents/projects/$(projectId)) &&
+        firestore.get(/databases/(default)/documents/projects/$(projectId)).data.customerUploadActive == true;
+    }
+
+    match /avatars/{userId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if isAdmin() || (signedIn() && request.auth.uid == userId);
+    }
+
+    match /attachments/{projectId}/{fileName} {
+      allow read: if canAccessProject(projectId);
+      allow write: if canAccessProject(projectId) || hasActiveCustomerUpload(projectId);
+    }
+
+    match /files/{projectId}/{fileName} {
+      allow read, write: if canAccessProject(projectId);
+    }
+
+    match /references/{projectId}/{fileName} {
+      allow read, write: if canAccessProject(projectId);
+    }
+
+    match /masters/{projectId}/{fileName} {
+      allow read: if canAccessProject(projectId) || hasActiveMasterShare(projectId);
+      allow write: if canAccessProject(projectId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

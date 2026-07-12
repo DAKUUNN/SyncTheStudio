@@ -1,0 +1,306 @@
+import { save, open as openDialog } from "@tauri-apps/plugin-dialog";
+import { writeTextFile, mkdir } from "@tauri-apps/plugin-fs";
+import { getProjects, getProjectHistory } from "./projectService";
+import { getCustomers } from "./customerService";
+import { getTasks } from "./taskService";
+import { getTimeEntries } from "./timeTrackingService";
+import { getMessagesOnce } from "./exportChatHelper";
+import type { ProjectModel } from "@/models/types";
+
+/** Port of export_service.dart + the folder/CSV parts of
+ *  bulk_operations_service.dart, using Tauri dialog + fs plugins. */
+
+function two(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function formatDate(d: Date): string {
+  return `${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYear()}`;
+}
+
+function formatDateTime(d: Date): string {
+  return `${formatDate(d)} ${two(d.getHours())}:${two(d.getMinutes())}`;
+}
+
+function timestampSuffix(): string {
+  const now = new Date();
+  return `${now.getFullYear()}${two(now.getMonth() + 1)}${two(now.getDate())}_${two(
+    now.getHours()
+  )}${two(now.getMinutes())}${two(now.getSeconds())}`;
+}
+
+function csvEscape(value: string): string {
+  return `"${value.replaceAll(";", ",").replaceAll("\n", " ")}"`;
+}
+
+export async function exportProjectsToCSV(userId: string): Promise<string | null> {
+  const projects = await getProjects(userId);
+  const customers = await getCustomers(userId);
+  const customerMap = new Map(customers.map((c) => [c.id, c.name]));
+
+  const lines = ["Projektname;Kunde;Status;Priorität;Typ;Deadline;Erstellt"];
+  for (const project of projects) {
+    const customerName =
+      project.customerName ??
+      (project.customerId ? customerMap.get(project.customerId) : null) ??
+      "Kein Kunde";
+    const deadline = project.deadline ? formatDate(project.deadline) : "Keine";
+    lines.push(
+      [
+        csvEscape(project.name),
+        csvEscape(customerName),
+        csvEscape(project.statusValue),
+        csvEscape(project.priority),
+        csvEscape(project.projectType),
+        deadline,
+        formatDate(project.createdAt),
+      ].join(";")
+    );
+  }
+
+  const path = await save({
+    defaultPath: `projekte_${timestampSuffix()}.csv`,
+    filters: [{ name: "CSV", extensions: ["csv"] }],
+  });
+  if (!path) return null;
+  await writeTextFile(path, lines.join("\n"));
+  return path;
+}
+
+export async function exportCustomersToCSV(userId: string): Promise<string | null> {
+  const customers = await getCustomers(userId);
+  const projects = await getProjects(userId);
+
+  const projectCountMap: Record<string, number> = {};
+  for (const project of projects) {
+    if (project.customerId) {
+      projectCountMap[project.customerId] =
+        (projectCountMap[project.customerId] ?? 0) + 1;
+    }
+  }
+
+  const lines = ["Name;E-Mail;Telefon;Discord;Instagram;Projekte;Erstellt"];
+  for (const customer of customers) {
+    lines.push(
+      [
+        csvEscape(customer.name),
+        csvEscape(customer.email ?? ""),
+        csvEscape(customer.phone ?? ""),
+        csvEscape(customer.discord ?? ""),
+        csvEscape(customer.instagram ?? ""),
+        String(projectCountMap[customer.id] ?? 0),
+        formatDate(customer.createdAt),
+      ].join(";")
+    );
+  }
+
+  const path = await save({
+    defaultPath: `kunden_${timestampSuffix()}.csv`,
+    filters: [{ name: "CSV", extensions: ["csv"] }],
+  });
+  if (!path) return null;
+  await writeTextFile(path, lines.join("\n"));
+  return path;
+}
+
+export async function exportTimeEntriesToCSV(userId: string): Promise<string | null> {
+  const projects = await getProjects(userId);
+  const lines = ["Projekt;Start;Ende;Dauer (Stunden);Beschreibung"];
+  let totalHours = 0;
+
+  for (const project of projects) {
+    const entries = await getTimeEntries(project.id);
+    for (const entry of entries) {
+      const hours = entry.durationMinutes / 60;
+      totalHours += hours;
+      lines.push(
+        [
+          csvEscape(project.name),
+          formatDateTime(entry.startTime),
+          entry.endTime ? formatDateTime(entry.endTime) : "Läuft",
+          hours.toFixed(2),
+          csvEscape(entry.description),
+        ].join(";")
+      );
+    }
+  }
+  lines.push("");
+  lines.push(`Gesamt Stunden;${totalHours.toFixed(2)}`);
+
+  const path = await save({
+    defaultPath: `zeiterfassung_${timestampSuffix()}.csv`,
+    filters: [{ name: "CSV", extensions: ["csv"] }],
+  });
+  if (!path) return null;
+  await writeTextFile(path, lines.join("\n"));
+  return path;
+}
+
+export async function generateFullBackup(userId: string): Promise<string | null> {
+  const projects = await getProjects(userId);
+  const customers = await getCustomers(userId);
+
+  const projectData = [];
+  for (const project of projects) {
+    const tasks = await getTasks(project.id);
+    const timeEntries = await getTimeEntries(project.id);
+    projectData.push({
+      id: project.id,
+      name: project.name,
+      status: project.statusValue,
+      priority: project.priority,
+      projectType: project.projectType,
+      customerId: project.customerId,
+      customerName: project.customerName,
+      deadline: project.deadline?.toISOString() ?? null,
+      createdAt: project.createdAt.toISOString(),
+      updatedAt: project.updatedAt.toISOString(),
+      bpm: project.bpm,
+      musicalKey: project.musicalKey,
+      workspaceLink: project.workspaceLink,
+      referenceLink: project.referenceLink,
+      attachments: project.attachments,
+      tasks: tasks.map((t) => ({
+        title: t.title,
+        description: t.description,
+        isCompleted: t.isCompleted,
+        dueDate: t.dueDate?.toISOString() ?? null,
+        subtasks: t.subtasks.map((s) => ({
+          title: s.title,
+          isCompleted: s.isCompleted,
+        })),
+      })),
+      timeEntries: timeEntries.map((e) => ({
+        startTime: e.startTime.toISOString(),
+        endTime: e.endTime?.toISOString() ?? null,
+        durationMinutes: e.durationMinutes,
+        description: e.description,
+      })),
+    });
+  }
+
+  const backupData = {
+    generatedAt: new Date().toISOString(),
+    userId,
+    projects: projectData,
+    customers: customers.map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      phone: c.phone,
+      notes: c.notes,
+      discord: c.discord,
+      instagram: c.instagram,
+      spotify: c.spotify,
+      appleMusic: c.appleMusic,
+      clientMemory: c.clientMemory,
+      referenceTracks: c.referenceTracks,
+      createdAt: c.createdAt.toISOString(),
+    })),
+  };
+
+  const path = await save({
+    defaultPath: `backup_${timestampSuffix()}.json`,
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
+  if (!path) return null;
+  await writeTextFile(path, JSON.stringify(backupData, null, 2));
+  return path;
+}
+
+/** Folder export for a single project (port of exportProjectsAsFolders):
+ *  writes Projekt.txt, Aufgaben.txt, Chat.txt, Zeiterfassung.txt, Verlauf.txt */
+export async function exportProjectAsFolder(params: {
+  userId: string;
+  project: ProjectModel;
+  includeProjectText?: boolean;
+  includeTodoList?: boolean;
+  includeChatLogs?: boolean;
+  includeTimeTracking?: boolean;
+  includeHistory?: boolean;
+}): Promise<string | null> {
+  const destination = await openDialog({
+    directory: true,
+    multiple: false,
+    title: "Export-Zielordner auswählen",
+  });
+  if (!destination || typeof destination !== "string") return null;
+
+  const safeName = params.project.name.replace(/[\\/:*?"<>|]/g, "_") || "Projekt";
+  const folder = `${destination}/${safeName}_${timestampSuffix()}`;
+  await mkdir(folder, { recursive: true });
+
+  const p = params.project;
+
+  if (params.includeProjectText !== false) {
+    const info = [
+      `Projekt: ${p.name}`,
+      `Kunde: ${p.customerName ?? "-"}`,
+      `Typ: ${p.projectType}`,
+      `Status: ${p.statusValue}`,
+      `Priorität: ${p.priority}`,
+      `Deadline: ${p.deadline ? formatDateTime(p.deadline) : "-"}`,
+      `BPM: ${p.bpm ?? "-"}`,
+      `Tonart: ${p.musicalKey ?? "-"}`,
+      `Workspace: ${p.workspaceLink ?? "-"}`,
+      `Referenz-Link: ${p.referenceLink ?? "-"}`,
+      `DAW-Projektpfad: ${p.dawProjectPath ?? "-"}`,
+      `Erstellt: ${formatDateTime(p.createdAt)}`,
+      `Aktualisiert: ${formatDateTime(p.updatedAt)}`,
+      "",
+      `Anhänge (${p.attachments.length}):`,
+      ...p.attachments.map((url) => `- ${p.attachmentNames[url] ?? url}`),
+    ].join("\n");
+    await writeTextFile(`${folder}/Projekt.txt`, info);
+  }
+
+  if (params.includeTodoList !== false) {
+    const tasks = await getTasks(p.id);
+    const lines = tasks.map((t) => {
+      const subtaskLines = t.subtasks.map(
+        (s) => `    ${s.isCompleted ? "[x]" : "[ ]"} ${s.title}`
+      );
+      return [
+        `${t.isCompleted ? "[x]" : "[ ]"} ${t.title}`,
+        ...(t.description ? [`    ${t.description}`] : []),
+        ...subtaskLines,
+      ].join("\n");
+    });
+    await writeTextFile(
+      `${folder}/Aufgaben.txt`,
+      lines.join("\n") || "Keine Aufgaben"
+    );
+  }
+
+  if (params.includeChatLogs !== false) {
+    const messages = await getMessagesOnce(p.id);
+    const lines = messages.map(
+      (m) => `[${formatDateTime(m.timestamp)}] ${m.username}: ${m.message}`
+    );
+    await writeTextFile(`${folder}/Chat.txt`, lines.join("\n") || "Keine Nachrichten");
+  }
+
+  if (params.includeTimeTracking !== false) {
+    const entries = await getTimeEntries(p.id);
+    const total = entries.reduce((sum, e) => sum + e.durationMinutes, 0);
+    const lines = entries.map(
+      (e) =>
+        `${formatDateTime(e.startTime)} | ${e.username} | ${e.durationMinutes} min | ${e.description}`
+    );
+    lines.push("", `Gesamt: ${(total / 60).toFixed(2)} Stunden`);
+    await writeTextFile(`${folder}/Zeiterfassung.txt`, lines.join("\n"));
+  }
+
+  if (params.includeHistory !== false) {
+    const history = await getProjectHistory(p.id, params.userId);
+    const lines = history.map(
+      (h) =>
+        `[${formatDateTime(h.timestamp)}] ${h.userName}: ${h.action}${
+          h.fieldName ? ` (${h.fieldName}: ${h.oldValue ?? "-"} → ${h.newValue ?? "-"})` : ""
+        }`
+    );
+    await writeTextFile(`${folder}/Verlauf.txt`, lines.join("\n") || "Kein Verlauf");
+  }
+
+  return folder;
+}

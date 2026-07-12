@@ -1,0 +1,345 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function userExists(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function isAdmin() {
+      return signedIn() && userExists(request.auth.uid) && userDoc(request.auth.uid).data.role == 'admin';
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function sharedProjectExists(projectId) {
+      return exists(/databases/$(database)/documents/shared_projects/$(projectId));
+    }
+
+    function sharedProjectDoc(projectId) {
+      return get(/databases/$(database)/documents/shared_projects/$(projectId));
+    }
+
+    function isSharedMember(projectId) {
+      return signedIn() && sharedProjectExists(projectId) && (
+        sharedProjectDoc(projectId).data.ownerId == request.auth.uid ||
+        request.auth.uid in sharedProjectDoc(projectId).data.sharedWith
+      );
+    }
+
+    function canAccessProject(projectId) {
+      return signedIn() && (
+        isAdmin() ||
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/projects/$(projectId)) ||
+        isSharedMember(projectId)
+      );
+    }
+
+    function canModifyUserProject(userId, projectId) {
+      return signedIn() && (isAdmin() || isSelf(userId) || isSharedMember(projectId));
+    }
+
+    function protectedUserFieldsUnchanged() {
+      return request.resource.data.role == resource.data.role &&
+        request.resource.data.plan == resource.data.plan &&
+        request.resource.data.isActive == resource.data.isActive &&
+        request.resource.data.locked == resource.data.locked &&
+        request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function validUserCreate(userId) {
+      return isSelf(userId) &&
+        request.resource.data.role == 'user' &&
+        request.resource.data.plan == 'free' &&
+        request.resource.data.isActive == true &&
+        request.resource.data.locked == false;
+    }
+
+    function notificationWriteKeysAllowed() {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(['readBy', 'isRead']);
+    }
+
+    function canUseDakuunMasterDomain() {
+      return signedIn() && userExists(request.auth.uid) &&
+        userDoc(request.auth.uid).data.role == 'admin' &&
+        userDoc(request.auth.uid).data.usernameLower == 'dakuun';
+    }
+
+    function validMasterShareBaseUrlValue(value) {
+      return value == null ||
+        value == 'https://syncthestudio.de/master' ||
+        value == 'https://dakuun.de/master' ||
+        value == 'https://syncthestudio-1d6b2.web.app/master';
+    }
+
+    function validProjectRootShareConfigForCreate() {
+      return !request.resource.data.keys().hasAny(['masterShareBaseUrl']) || (
+        validMasterShareBaseUrlValue(request.resource.data.masterShareBaseUrl) &&
+        (
+          request.resource.data.masterShareBaseUrl != 'https://dakuun.de/master' ||
+          canUseDakuunMasterDomain()
+        )
+      );
+    }
+
+    function validProjectRootShareConfigForUpdate() {
+      return !request.resource.data.diff(resource.data).changedKeys().hasAny(['masterShareBaseUrl']) || (
+        validMasterShareBaseUrlValue(request.resource.data.masterShareBaseUrl) &&
+        (
+          request.resource.data.masterShareBaseUrl == resource.data.masterShareBaseUrl ||
+          request.resource.data.masterShareBaseUrl != 'https://dakuun.de/master' ||
+          canUseDakuunMasterDomain()
+        )
+      );
+    }
+
+    function validCustomerUploadBaseUrlValue(value) {
+      return value == null ||
+        value == 'https://syncthestudio.de/upload' ||
+        value == 'https://dakuun.de/upload' ||
+        value == 'https://syncthestudio-1d6b2.web.app/upload';
+    }
+
+    function validCustomerUploadConfigForCreate() {
+      return !request.resource.data.keys().hasAny(['customerUploadBaseUrl']) || (
+        validCustomerUploadBaseUrlValue(request.resource.data.customerUploadBaseUrl) &&
+        (
+          request.resource.data.customerUploadBaseUrl != 'https://dakuun.de/upload' ||
+          canUseDakuunMasterDomain()
+        )
+      );
+    }
+
+    function validCustomerUploadConfigForUpdate() {
+      return !request.resource.data.diff(resource.data).changedKeys().hasAny(['customerUploadBaseUrl']) || (
+        validCustomerUploadBaseUrlValue(request.resource.data.customerUploadBaseUrl) &&
+        (
+          request.resource.data.customerUploadBaseUrl == resource.data.customerUploadBaseUrl ||
+          request.resource.data.customerUploadBaseUrl != 'https://dakuun.de/upload' ||
+          canUseDakuunMasterDomain()
+        )
+      );
+    }
+
+    function canCreateProjectInvitation(projectId, ownerId, inviterId) {
+      return signedIn() && inviterId == request.auth.uid && (
+        isAdmin() ||
+        ownerId == request.auth.uid ||
+        (
+          canAccessProject(projectId) &&
+          userExists(request.auth.uid) &&
+          userDoc(request.auth.uid).data.plan == 'vip'
+        )
+      );
+    }
+
+    // ── Public share links ──────────────────────────────────────────
+    // A public master-review or customer-upload link must never grant read
+    // access to the full `projects/{id}` document (it carries the AES
+    // contentKey used to encrypt notes/chat/tasks). The app therefore
+    // mirrors only a safe subset of fields into these dedicated documents,
+    // keyed by the unguessable share token, whenever the owner changes
+    // their share settings (see src/services/masterService.ts). Anyone
+    // holding the token may read the pointer; only the owning user may
+    // create/update/delete it.
+
+    function isActiveMasterShare(projectId) {
+      return exists(/databases/$(database)/documents/projects/$(projectId)) &&
+        get(/databases/$(database)/documents/projects/$(projectId)).data.masterShareActive == true;
+    }
+
+    function isActiveCustomerUpload(projectId) {
+      return exists(/databases/$(database)/documents/projects/$(projectId)) &&
+        get(/databases/$(database)/documents/projects/$(projectId)).data.customerUploadActive == true;
+    }
+
+    function isAttachmentOnlyChange() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attachments', 'attachmentNames', 'updatedAt']);
+    }
+
+    function isTimestampOnlyChange() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt']);
+    }
+
+    match /public_master_shares/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    match /public_uploads/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow create: if signedIn() && validUserCreate(userId);
+      allow read: if signedIn();
+      allow update: if signedIn() && (
+        isAdmin() ||
+        (isSelf(userId) && protectedUserFieldsUnchanged())
+      );
+      allow delete: if isAdmin();
+
+      match /private/{docId} {
+        allow read, create, update, delete: if isAdmin() || isSelf(userId);
+      }
+
+      match /projects/{projectId} {
+        allow create: if signedIn() && (isSelf(userId) || isAdmin());
+        allow read, delete: if canModifyUserProject(userId, projectId);
+        allow update: if canModifyUserProject(userId, projectId) || (
+          isActiveCustomerUpload(projectId) && isAttachmentOnlyChange()
+        );
+      }
+
+      match /customers/{customerId} {
+        allow read, create, update, delete: if isAdmin() || isSelf(userId);
+      }
+
+      match /projectTypes/{typeId} {
+        allow read, create, update, delete: if isAdmin() || isSelf(userId);
+      }
+
+      match /projectTemplates/{templateId} {
+        allow read, create, update, delete: if isAdmin() || isSelf(userId);
+      }
+    }
+
+    match /shared_projects/{projectId} {
+      allow read: if canAccessProject(projectId);
+      allow create: if signedIn() && (
+        isAdmin() || request.resource.data.ownerId == request.auth.uid
+      );
+      allow update: if signedIn() && (isAdmin() || isSharedMember(projectId)) || (
+        isActiveCustomerUpload(projectId) && isAttachmentOnlyChange()
+      );
+      allow delete: if signedIn() && (
+        isAdmin() || resource.data.ownerId == request.auth.uid
+      );
+    }
+
+    match /project_invitations/{invitationId} {
+      allow read: if signedIn() && (
+        isAdmin() ||
+        resource.data.ownerId == request.auth.uid ||
+        resource.data.invitedUserId == request.auth.uid
+      );
+      allow create: if canCreateProjectInvitation(
+        request.resource.data.projectId,
+        request.resource.data.ownerId,
+        request.resource.data.inviterId
+      );
+      allow update: if signedIn() && (
+        isAdmin() ||
+        resource.data.ownerId == request.auth.uid ||
+        resource.data.invitedUserId == request.auth.uid
+      );
+      allow delete: if signedIn() && (
+        isAdmin() ||
+        resource.data.ownerId == request.auth.uid ||
+        resource.data.invitedUserId == request.auth.uid
+      );
+    }
+
+    match /chats/{projectId} {
+      allow read, create, update, delete: if canAccessProject(projectId);
+
+      match /messages/{messageId} {
+        allow read, create, update, delete: if canAccessProject(projectId);
+      }
+    }
+
+    match /projects/{projectId} {
+      allow read: if canAccessProject(projectId);
+      allow create: if signedIn() && (
+        (isAdmin() || request.resource.data.ownerId == request.auth.uid) &&
+        validProjectRootShareConfigForCreate() &&
+        validCustomerUploadConfigForCreate()
+      );
+      allow update: if signedIn() && (
+        (isAdmin() || resource.data.ownerId == request.auth.uid) &&
+        validProjectRootShareConfigForUpdate() &&
+        validCustomerUploadConfigForUpdate()
+      ) || (
+        isActiveCustomerUpload(projectId) && isTimestampOnlyChange()
+      );
+      allow delete: if signedIn() && (
+        isAdmin() || resource.data.ownerId == request.auth.uid
+      );
+
+      match /tasks/{taskId} {
+        allow read, create, update, delete: if canAccessProject(projectId);
+
+        match /comments/{commentId} {
+          allow read, create, update, delete: if canAccessProject(projectId);
+        }
+      }
+
+      match /timeEntries/{entryId} {
+        allow read, create, update, delete: if canAccessProject(projectId);
+      }
+
+      match /masters/{masterId} {
+        allow read: if canAccessProject(projectId) || isActiveMasterShare(projectId);
+        allow create, update, delete: if signedIn() && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid
+        );
+      }
+
+      match /masterFeedback/{feedbackId} {
+        allow read: if canAccessProject(projectId);
+        allow create, update, delete: if signedIn() && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid
+        );
+      }
+    }
+
+    match /app_admin_notifications/{notificationId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.senderId == request.auth.uid;
+      allow update: if signedIn() && notificationWriteKeysAllowed();
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /public_theme_presets/{presetId} {
+      allow read: if signedIn();
+      allow create: if signedIn() &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.isSystemPreset == false;
+      allow update: if signedIn() &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        resource.data.createdBy == request.auth.uid &&
+        request.resource.data.isSystemPreset == false;
+      allow delete: if false;
+    }
+
+    match /project_history/{projectId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
