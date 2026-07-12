@@ -1270,6 +1270,35 @@ input[type="range"] {
   transform: scale(1.06);
 }
 
+.sidebar-profile-btn {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 6px;
+  margin: -6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.sidebar-profile-btn:hover,
+.sidebar-profile-btn:focus-visible {
+  background: var(--user-nav-indicator);
+}
+
+.sidebar-profile-name {
+  font-weight: 600;
+  color: var(--user-text);
+  transition: color 0.15s ease;
+}
+
+.sidebar-profile-btn:hover .sidebar-profile-name,
+.sidebar-profile-btn:focus-visible .sidebar-profile-name {
+  color: var(--user-nav-selected, var(--user-text));
+}
+
 /* Respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1295,4 +1324,114 @@ input[type="range"] {
   border-radius: 3px;
   background: var(--primary);
   transition: width 0.25s ease;
+}
+
+/* ── Onboarding tour ─────────────────────────────────────────────── */
+
+.tour-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+}
+
+.tour-dim {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.7);
+}
+
+.tour-spotlight {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.72);
+  border: 2px solid var(--accent);
+  animation: tourPulse 1.8s ease-in-out infinite;
+  pointer-events: none;
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+@keyframes tourPulse {
+  0%, 100% { box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.72), 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  50% { box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.72), 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+
+.tour-card {
+  position: fixed;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 14px 16px 16px;
+  animation: slideUp 0.16s ease;
+}
+
+.tour-progress-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.tour-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.tour-card-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.app-context-menu {
+  position: fixed;
+  z-index: 9500;
+  min-width: 190px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  animation: slideUp 0.1s ease;
+}
+
+.app-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-context-menu-item:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.app-context-menu-item:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.tour-premium-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #f5b942 20%, transparent);
+  color: #f5b942;
+  vertical-align: middle;
 }

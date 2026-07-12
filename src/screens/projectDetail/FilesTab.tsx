@@ -315,9 +315,16 @@ export function FilesTab({
               <div className="card-title">
                 {t("attachments.title")} ({project.attachments.length})
               </div>
-              <button className="btn btn-primary btn-sm" onClick={() => void pickAndUpload()}>
-                <IconUpload /> {t("attachments.uploadAction")}
-              </button>
+              <div className="row" style={{ gap: 8 }}>
+                {currentUser && !hasPremiumStorage(currentUser) && (
+                  <span className="tour-premium-badge" title={t("plan.premium")}>
+                    ★ {t("plan.premium")}
+                  </span>
+                )}
+                <button className="btn btn-primary btn-sm" onClick={() => void pickAndUpload()}>
+                  <IconUpload /> {t("attachments.uploadAction")}
+                </button>
+              </div>
             </div>
             <div
               onDragOver={(e) => {
@@ -376,7 +383,16 @@ export function FilesTab({
           </div>
 
           <div className="card card-pad">
-            <div className="section-title">{t("customerUpload.title")}</div>
+            <div className="row" style={{ gap: 8, marginBottom: 10 }}>
+              <div className="section-title" style={{ marginBottom: 0 }}>
+                {t("customerUpload.title")}
+              </div>
+              {currentUser && !hasPremiumStorage(currentUser) && (
+                <span className="tour-premium-badge" title={t("plan.premium")}>
+                  ★ {t("plan.premium")}
+                </span>
+              )}
+            </div>
             {uploadLink ? (
               <>
                 <div className="row row-wrap" style={{ marginBottom: 10 }}>
@@ -484,14 +500,21 @@ export function FilesTab({
                 <div className="card-title">
                   {t("masters.title")} ({masters.length})
                 </div>
-                <button
-                  className="btn btn-primary btn-sm"
-                  disabled={masterUploading}
-                  onClick={() => void onPickMaster()}
-                >
-                  <IconUpload />
-                  {masterUploading ? t("common.uploading") : t("masters.upload")}
-                </button>
+                <div className="row" style={{ gap: 8 }}>
+                  {currentUser && !hasPremiumStorage(currentUser) && (
+                    <span className="tour-premium-badge" title={t("plan.premium")}>
+                      ★ {t("plan.premium")}
+                    </span>
+                  )}
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={masterUploading}
+                    onClick={() => void onPickMaster()}
+                  >
+                    <IconUpload />
+                    {masterUploading ? t("common.uploading") : t("masters.upload")}
+                  </button>
+                </div>
               </div>
               {masters.length === 0 ? (
                 <div className="empty-state">
@@ -588,7 +611,16 @@ export function FilesTab({
           </div>
 
           <div className="card card-pad">
-            <div className="section-title">{t("masters.shareTitle")}</div>
+            <div className="row" style={{ gap: 8, marginBottom: 10 }}>
+              <div className="section-title" style={{ marginBottom: 0 }}>
+                {t("masters.shareTitle")}
+              </div>
+              {currentUser && !hasPremiumStorage(currentUser) && (
+                <span className="tour-premium-badge" title={t("plan.premium")}>
+                  ★ {t("plan.premium")}
+                </span>
+              )}
+            </div>
             {share && share.token ? (
               <>
                 <div className="row row-wrap" style={{ marginBottom: 10 }}>

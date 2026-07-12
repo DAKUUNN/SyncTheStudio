@@ -40,6 +40,7 @@ import {
 import { replaceProjectStatusForUser } from "@/services/projectService";
 import { updatePreferredLanguage } from "@/services/authService";
 import { Modal, ConfirmDialog } from "@/components/ui";
+import { ChangelogModal } from "@/components/WhatsNewModal";
 import {
   IconPalette,
   IconGlobe,
@@ -383,6 +384,7 @@ function LanguageSettings() {
   const { t, lang, setLanguage } = useI18n();
   const { currentUser } = useAuth();
   const { showToast } = useToast();
+  const [changelogOpen, setChangelogOpen] = useState(false);
 
   const onSelect = async (code: LanguageCode) => {
     setLanguage(code, currentUser?.id);
@@ -393,29 +395,51 @@ function LanguageSettings() {
   };
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <div className="card-title">{t("settings.language")}</div>
-      </div>
-      {LOCALE_OPTIONS.map((option) => (
-        <div
-          key={option.code}
-          className="list-row clickable"
-          onClick={() => void onSelect(option.code)}
-        >
-          <div className="grow">
-            <div className="text-small" style={{ fontWeight: 600 }}>
-              {option.nativeName}
-            </div>
-            <div className="text-xs text-muted">{option.englishName}</div>
-          </div>
-          {lang === option.code && (
-            <span className="badge" style={{ background: "var(--primary-soft)", color: "var(--primary)" }}>
-              ✓
-            </span>
-          )}
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">{t("settings.language")}</div>
         </div>
-      ))}
+        {LOCALE_OPTIONS.map((option) => (
+          <div
+            key={option.code}
+            className="list-row clickable"
+            onClick={() => void onSelect(option.code)}
+          >
+            <div className="grow">
+              <div className="text-small" style={{ fontWeight: 600 }}>
+                {option.nativeName}
+              </div>
+              <div className="text-xs text-muted">{option.englishName}</div>
+            </div>
+            {lang === option.code && (
+              <span className="badge" style={{ background: "var(--primary-soft)", color: "var(--primary)" }}>
+                ✓
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="card card-pad">
+        <div
+          className="row"
+          style={{ justifyContent: "space-between", cursor: "pointer" }}
+          onClick={() => setChangelogOpen(true)}
+        >
+          <div>
+            <div className="text-small" style={{ fontWeight: 600 }}>
+              {t("whatsNew.menuTitle")}
+            </div>
+            <div className="text-xs text-muted">{t("whatsNew.viewAll")}</div>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={() => setChangelogOpen(true)}>
+            {t("whatsNew.viewAll")}
+          </button>
+        </div>
+      </div>
+
+      {changelogOpen && <ChangelogModal onClose={() => setChangelogOpen(false)} />}
     </div>
   );
 }

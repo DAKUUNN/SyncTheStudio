@@ -39,3 +39,24 @@ export async function copyText(text: string): Promise<boolean> {
     return false;
   }
 }
+
+/** Same fallback chain as copyText, in reverse (read instead of write). */
+export async function pasteText(): Promise<string | null> {
+  try {
+    const { readText } = await import("@tauri-apps/plugin-clipboard-manager");
+    const text = await readText();
+    if (typeof text === "string") return text;
+  } catch {
+    // not running in Tauri or plugin unavailable — fall through
+  }
+
+  try {
+    if (navigator.clipboard?.readText) {
+      return await navigator.clipboard.readText();
+    }
+  } catch {
+    // fall through — most likely a missing clipboard-read permission
+  }
+
+  return null;
+}

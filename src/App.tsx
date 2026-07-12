@@ -7,6 +7,8 @@ import { I18nProvider, useI18n } from "@/i18n";
 import { AppLayout } from "@/components/AppLayout";
 import { ToastStack } from "@/components/ui";
 import { UpdateNotifier } from "@/components/UpdateNotifier";
+import { WhatsNewModal } from "@/components/WhatsNewModal";
+import { AppContextMenu } from "@/components/AppContextMenu";
 import { LoginScreen } from "@/screens/LoginScreen";
 import { RegisterScreen } from "@/screens/RegisterScreen";
 import { DashboardScreen } from "@/screens/DashboardScreen";
@@ -159,6 +161,8 @@ export default function App() {
             </HashRouter>
             <ToastStack />
             <UpdateNotifier />
+            <WhatsNewModal />
+            <AppContextMenu />
           </AuthProvider>
         </ToastProvider>
       </ThemeProvider>

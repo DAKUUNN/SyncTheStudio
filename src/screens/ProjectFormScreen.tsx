@@ -23,12 +23,13 @@ import {
   getSharedProject,
   addHistoryEntry,
 } from "@/services/projectService";
-import { getCustomers } from "@/services/customerService";
+import { getCustomers, createCustomer } from "@/services/customerService";
 import {
   getProjectTypes,
   getTemplates,
   createTemplate,
   deleteTemplate,
+  createProjectType,
 } from "@/services/templateService";
 import {
   getStatuses,
@@ -85,6 +86,13 @@ export function ProjectFormScreen() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
+  const [quickAddCustomerOpen, setQuickAddCustomerOpen] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [quickAddTypeOpen, setQuickAddTypeOpen] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [newTypeColor, setNewTypeColor] = useState("#8B5CF6");
+  const [savingType, setSavingType] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -160,6 +168,67 @@ export function ProjectFormScreen() {
     if (template.priority) setPriority(template.priority as ProjectPriority);
     setTemplatesOpen(false);
     showToast(t("templates.applied"), "success");
+  };
+
+  const onQuickAddCustomer = async () => {
+    if (!currentUser || !newCustomerName.trim()) return;
+    setSavingCustomer(true);
+    try {
+      const id = await createCustomer(currentUser.id, { name: newCustomerName.trim() });
+      const newCustomer: CustomerModel = {
+        id,
+        name: newCustomerName.trim(),
+        email: null,
+        phone: null,
+        notes: null,
+        discord: null,
+        instagram: null,
+        spotify: null,
+        appleMusic: null,
+        clientMemory: {},
+        referenceTracks: [],
+        ownerId: currentUser.id,
+        createdAt: new Date(),
+      };
+      setCustomers((prev) => [...prev, newCustomer]);
+      setCustomerId(id);
+      setQuickAddCustomerOpen(false);
+      setNewCustomerName("");
+      showToast(t("customers.created"), "success");
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
+
+  const onQuickAddType = async () => {
+    if (!currentUser || !newTypeName.trim()) return;
+    setSavingType(true);
+    try {
+      const id = await createProjectType({
+        userId: currentUser.id,
+        name: newTypeName.trim(),
+        color: newTypeColor,
+      });
+      const newType: ProjectTypeModel = {
+        id,
+        name: newTypeName.trim(),
+        color: newTypeColor,
+        isDefault: false,
+        ownerId: currentUser.id,
+        createdAt: new Date(),
+      };
+      setTypes((prev) => [...prev, newType]);
+      setProjectType(newType.name);
+      setQuickAddTypeOpen(false);
+      setNewTypeName("");
+      showToast(t("projectTypes.added"), "success");
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally {
+      setSavingType(false);
+    }
   };
 
   const pickReferenceFile = async () => {
@@ -378,7 +447,13 @@ export function ProjectFormScreen() {
             <select
               className="select"
               value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === "__new__") {
+                  setQuickAddCustomerOpen(true);
+                  return;
+                }
+                setCustomerId(e.target.value);
+              }}
             >
               <option value="">{t("createProject.noCustomer")}</option>
               {customers.map((customer) => (
@@ -386,6 +461,7 @@ export function ProjectFormScreen() {
                   {customer.name}
                 </option>
               ))}
+              <option value="__new__">{t("createProject.addNewCustomer")}</option>
             </select>
           </div>
           <div className="field">
@@ -393,7 +469,13 @@ export function ProjectFormScreen() {
             <select
               className="select"
               value={projectType}
-              onChange={(e) => setProjectType(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === "__new__") {
+                  setQuickAddTypeOpen(true);
+                  return;
+                }
+                setProjectType(e.target.value);
+              }}
             >
               {types.map((type) => (
                 <option key={type.id} value={type.name}>
@@ -403,6 +485,7 @@ export function ProjectFormScreen() {
               {!types.some((type) => type.name === projectType) && (
                 <option value={projectType}>{projectType}</option>
               )}
+              <option value="__new__">{t("createProject.addNewType")}</option>
             </select>
           </div>
         </div>
@@ -663,6 +746,88 @@ export function ProjectFormScreen() {
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
               autoFocus
+            />
+          </div>
+        </Modal>
+      )}
+
+      {quickAddCustomerOpen && (
+        <Modal
+          title={t("createProject.addNewCustomerTitle")}
+          onClose={() => setQuickAddCustomerOpen(false)}
+          footer={
+            <>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setQuickAddCustomerOpen(false)}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={savingCustomer || !newCustomerName.trim()}
+                onClick={() => void onQuickAddCustomer()}
+              >
+                {savingCustomer ? t("common.saving") : t("common.create")}
+              </button>
+            </>
+          }
+        >
+          <div className="field">
+            <label className="field-label">{t("common.name")}</label>
+            <input
+              className="input"
+              value={newCustomerName}
+              onChange={(e) => setNewCustomerName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void onQuickAddCustomer();
+              }}
+              autoFocus
+            />
+          </div>
+        </Modal>
+      )}
+
+      {quickAddTypeOpen && (
+        <Modal
+          title={t("createProject.addNewTypeTitle")}
+          onClose={() => setQuickAddTypeOpen(false)}
+          footer={
+            <>
+              <button className="btn btn-secondary" onClick={() => setQuickAddTypeOpen(false)}>
+                {t("common.cancel")}
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={savingType || !newTypeName.trim()}
+                onClick={() => void onQuickAddType()}
+              >
+                {savingType ? t("common.saving") : t("common.create")}
+              </button>
+            </>
+          }
+        >
+          <div className="field">
+            <label className="field-label">{t("common.name")}</label>
+            <input
+              className="input"
+              value={newTypeName}
+              onChange={(e) => setNewTypeName(e.target.value)}
+              placeholder={t("projectTypes.newHint")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void onQuickAddType();
+              }}
+              autoFocus
+            />
+          </div>
+          <div className="field">
+            <label className="field-label">{t("createProject.typeColorLabel")}</label>
+            <input
+              type="color"
+              className="input"
+              style={{ width: 64, height: 36, padding: 4 }}
+              value={newTypeColor}
+              onChange={(e) => setNewTypeColor(e.target.value)}
             />
           </div>
         </Modal>

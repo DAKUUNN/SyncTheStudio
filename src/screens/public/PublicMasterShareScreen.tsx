@@ -71,7 +71,7 @@ async function fetchDecryptedBlob(master: MasterVersionModel): Promise<Blob> {
   return bytesToBlob(plainBytes, master.mimeType);
 }
 
-const WAVEFORM_BUCKETS = 180;
+const WAVEFORM_BUCKETS = 90;
 
 /** Best-effort — some browsers/formats may fail to decode, waveform just
  * falls back to a plain seek bar in that case (see loadMaster's catch). */
@@ -82,6 +82,7 @@ async function computeWaveformPeaks(bytes: Uint8Array): Promise<number[]> {
   if (!AudioContextCtor) return [];
   const ctx = new AudioContextCtor();
   try {
+    if (ctx.state === "suspended") await ctx.resume().catch(() => {});
     const buffer = bytes.buffer.slice(
       bytes.byteOffset,
       bytes.byteOffset + bytes.byteLength
@@ -102,7 +103,8 @@ async function computeWaveformPeaks(bytes: Uint8Array): Promise<number[]> {
       if (blockMax > max) max = blockMax;
     }
     return max > 0 ? peaks.map((p) => p / max) : peaks;
-  } catch {
+  } catch (e) {
+    console.warn("waveform decode failed:", e);
     return [];
   } finally {
     void ctx.close();

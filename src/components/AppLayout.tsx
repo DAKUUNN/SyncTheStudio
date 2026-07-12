@@ -12,12 +12,13 @@ import {
   finalizeAcceptedInvitationsForOwner,
 } from "@/services/invitationService";
 import { getProjects } from "@/services/projectService";
+import { hasPremiumStorage } from "@/services/planService";
 import { Avatar } from "./ui";
+import { OnboardingTour } from "./OnboardingTour";
 import {
   IconHome,
   IconFolder,
   IconUsers,
-  IconUser,
   IconInbox,
   IconSearch,
   IconBell,
@@ -112,11 +113,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const bottomNavItems = useMemo(
     () => [
       {
-        path: "/profile",
-        icon: <IconUser className="nav-icon" />,
-        label: t("nav.profile"),
-      },
-      {
         path: "/settings",
         icon: <IconSettings className="nav-icon" />,
         label: t("settings.title"),
@@ -158,6 +154,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <div className="sidebar-section">
           <button
             className="btn btn-primary btn-block"
+            data-tour="new-project"
             onClick={() => navigate("/projects/new")}
           >
             <IconPlus /> {t("home.newProject")}
@@ -168,6 +165,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           {navItems.map((item) => (
             <button
               key={item.path}
+              data-tour={`nav-${item.path.replace("/", "") || "home"}`}
               className={`nav-item${isActive(item.path) ? " active" : ""}`}
               onClick={() => navigate(item.path)}
             >
@@ -183,6 +181,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           {bottomNavItems.map((item) => (
             <button
               key={item.path}
+              data-tour={`nav-${item.path.replace("/", "")}`}
               className={`nav-item${isActive(item.path) ? " active" : ""}`}
               onClick={() => navigate(item.path)}
             >
@@ -190,28 +189,40 @@ export function AppLayout({ children }: { children: ReactNode }) {
               {item.label}
             </button>
           ))}
-          <button className="nav-item" onClick={() => navigate("/export")}>
+          <button className="nav-item" data-tour="nav-export" onClick={() => navigate("/export")}>
             <IconExport className="nav-icon" />
             {t("export.title")}
+            {!hasPremiumStorage(currentUser) && (
+              <span className="tour-premium-badge" title={t("plan.premium")}>
+                ★
+              </span>
+            )}
           </button>
         </div>
 
         <div className="sidebar-footer">
           <div className="row">
-            <Avatar
-              name={currentUser.username}
-              url={currentUser.avatarUrl}
-              size={34}
-              online
-            />
-            <div className="grow" style={{ minWidth: 0 }}>
-              <div className="text-small truncate" style={{ fontWeight: 600 }}>
-                {currentUser.username}
+            <button
+              className="row sidebar-profile-btn"
+              data-tour="profile"
+              onClick={() => navigate("/profile")}
+              title={t("nav.profile")}
+            >
+              <Avatar
+                name={currentUser.username}
+                url={currentUser.avatarUrl}
+                size={34}
+                online
+              />
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div className="text-small truncate sidebar-profile-name">
+                  {currentUser.username}
+                </div>
+                <div className="text-xs text-muted truncate">
+                  {currentUser.plan === "vip" ? "Premium" : currentUser.role === "admin" ? "Admin" : "Free"}
+                </div>
               </div>
-              <div className="text-xs text-muted truncate">
-                {currentUser.plan === "vip" ? "Premium" : currentUser.role === "admin" ? "Admin" : "Free"}
-              </div>
-            </div>
+            </button>
             <button
               className="icon-btn"
               title={t("common.logout")}
@@ -227,6 +238,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <header className="topbar">
           <button
             className="btn btn-secondary btn-sm"
+            data-tour="search"
             onClick={() => setPaletteOpen(true)}
             style={{ minWidth: 220, justifyContent: "flex-start", fontWeight: 500 }}
           >
@@ -239,6 +251,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <div className="topbar-spacer" />
           <button
             className="icon-btn"
+            data-tour="notifications"
             title={t("notifications.title")}
             onClick={() => navigate("/notifications")}
           >
@@ -261,6 +274,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
           }}
         />
       )}
+
+      <OnboardingTour />
     </div>
   );
 }

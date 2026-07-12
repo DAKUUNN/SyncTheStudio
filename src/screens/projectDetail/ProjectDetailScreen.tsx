@@ -46,6 +46,7 @@ import { ChatTab } from "./ChatTab";
 import { TasksTab } from "./TasksTab";
 import { TimeTab } from "./TimeTab";
 import { HistoryTab } from "./HistoryTab";
+import { ProjectDetailTour } from "@/components/ProjectDetailTour";
 
 type DetailTab = "info" | "files" | "team" | "chat" | "tasks" | "time" | "history";
 
@@ -226,6 +227,7 @@ export function ProjectDetailScreen() {
         {tabs.map((item) => (
           <button
             key={item.id}
+            data-tour={`project-tab-${item.id}`}
             className={`tab${tab === item.id ? " active" : ""}`}
             onClick={() => setTab(item.id)}
           >
@@ -269,6 +271,8 @@ export function ProjectDetailScreen() {
           onCancel={() => setConfirmLeave(false)}
         />
       )}
+
+      <ProjectDetailTour ready={tab === "info"} />
     </div>
   );
 }

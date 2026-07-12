@@ -365,13 +365,14 @@
 .ab-waveform {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   height: 36px;
   cursor: pointer;
 }
 
 .ab-waveform-bar {
   flex: 1;
+  min-width: 1px;
   min-height: 3px;
   border-radius: 2px;
   background: rgb(255 255 255 / 0.14);

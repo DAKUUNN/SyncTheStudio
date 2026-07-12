@@ -89,9 +89,29 @@ service firebase.storage {
       allow read, write: if canAccessProject(projectId);
     }
 
+    // Legacy flat path (pre owner-scoped rewrite) — kept for already-
+    // uploaded files so old masters don't break.
     match /masters/{projectId}/{fileName} {
       allow read: if canAccessProject(projectId) || hasActiveMasterShare(projectId);
       allow write: if canAccessProject(projectId);
+    }
+
+    // canAccessProject() chains several cross-service firestore.get()/
+    // exists() calls (isAdmin -> userDoc, own-project exists, shared_projects
+    // exists+get). That chain has been observed to 403 live even when every
+    // condition is true (same class of fragility documented above for
+    // hasActiveCustomerUpload) — most likely the sheer number of chained
+    // cross-service lookups in one rule evaluation. Embedding the owner's
+    // uid in the path lets the overwhelmingly common case (the owner
+    // reading/writing their own master) skip cross-service lookups
+    // entirely: a pure request.auth.uid check, which is 100% reliable.
+    match /masters/{ownerId}/{projectId}/{fileName} {
+      allow read, write: if signedIn() && request.auth.uid == ownerId;
+      allow read, write: if isAdmin();
+      allow read, write: if signedIn() &&
+        firestore.exists(/databases/(default)/documents/shared_projects/$(projectId)) &&
+        request.auth.uid in firestore.get(/databases/(default)/documents/shared_projects/$(projectId)).data.sharedWith;
+      allow read: if hasActiveMasterShare(projectId);
     }
 
     match /{allPaths=**} {

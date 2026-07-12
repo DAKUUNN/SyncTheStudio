@@ -190,7 +190,7 @@ export async function uploadMasterVersion(params: {
   const extension = params.fileName.includes(".")
     ? params.fileName.split(".").pop()!.toLowerCase()
     : "bin";
-  const storagePath = `masters/${params.project.id}/${Date.now()}.${
+  const storagePath = `masters/${params.project.ownerId}/${params.project.id}/${Date.now()}.${
     extension === "bin" ? "enc" : `${extension}.enc`
   }`;
 

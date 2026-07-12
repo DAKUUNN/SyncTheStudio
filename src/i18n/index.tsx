@@ -67,15 +67,6 @@ export function normalizeLanguageCode(value: string | null | undefined): Languag
     : null;
 }
 
-function bestSystemLanguageCode(): LanguageCode {
-  const candidates = [...(navigator.languages ?? []), navigator.language];
-  for (const raw of candidates) {
-    const code = normalizeLanguageCode(raw?.split("-")[0]);
-    if (code) return code;
-  }
-  return "en";
-}
-
 /** Translation lookup with the same fallback chain as the Flutter app: lang -> en -> de -> key. */
 export function translate(
   lang: LanguageCode,
@@ -105,8 +96,12 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<LanguageCode>(() => {
+    // First-time users default to English regardless of system/browser
+    // locale — the app targets an international audience. Users can switch
+    // to their preferred language in Settings; that choice is what's read
+    // from LOCALE_STORAGE_KEY on every load after the first.
     const stored = normalizeLanguageCode(localStorage.getItem(LOCALE_STORAGE_KEY));
-    const initial = stored ?? bestSystemLanguageCode();
+    const initial = stored ?? "en";
     currentLanguageCodeGlobal = initial;
     return initial;
   });
@@ -134,9 +129,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         localStorage.getItem(LOCALE_STORAGE_KEY)
       );
       const cloud = normalizeLanguageCode(preferredLanguageCode);
-      const system = bestSystemLanguageCode();
-      const resolved =
-        storedUser ?? storedGlobal ?? (cloud === null || cloud === "en" ? system : cloud);
+      const resolved = storedUser ?? storedGlobal ?? cloud ?? "en";
       if (resolved !== lang) {
         setLang(resolved);
       }

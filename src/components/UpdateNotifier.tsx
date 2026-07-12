@@ -4,8 +4,11 @@ import { checkForUpdate, installUpdateAndRestart, type AvailableUpdate } from "@
 import { Modal, ProgressBar } from "./ui";
 import { IconDownload, IconRefresh } from "./Icons";
 
-/** Checks for an app update shortly after startup and, if one is
- *  available, shows a blocking-but-dismissible popup with a one-click
+const RECHECK_INTERVAL_MS = 30 * 60 * 1000;
+
+/** Checks for an app update shortly after startup, then keeps re-checking
+ *  every 30 minutes for as long as the app stays open. As soon as an
+ *  update is found, shows a dismissible popup with a one-click
  *  "install & restart" action. No-ops outside the Tauri desktop shell. */
 export function UpdateNotifier() {
   const { t } = useI18n();
@@ -16,12 +19,22 @@ export function UpdateNotifier() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    let cancelled = false;
+    const runCheck = () => {
       void checkForUpdate().then((result) => {
-        if (result) setUpdate(result);
+        if (!cancelled && result) {
+          setUpdate(result);
+          setDismissed(false);
+        }
       });
-    }, 2500);
-    return () => window.clearTimeout(timer);
+    };
+    const startTimer = window.setTimeout(runCheck, 2500);
+    const interval = window.setInterval(runCheck, RECHECK_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(startTimer);
+      window.clearInterval(interval);
+    };
   }, []);
 
   if (!update || dismissed) return null;
