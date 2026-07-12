@@ -1,10 +1,12 @@
 import { save, open as openDialog } from "@tauri-apps/plugin-dialog";
-import { writeTextFile, mkdir } from "@tauri-apps/plugin-fs";
+import { writeTextFile, writeFile, mkdir } from "@tauri-apps/plugin-fs";
 import { getProjects, getProjectHistory } from "./projectService";
 import { getCustomers } from "./customerService";
 import { getTasks } from "./taskService";
 import { getTimeEntries } from "./timeTrackingService";
 import { getMessagesOnce } from "./exportChatHelper";
+import { getMastersOnce } from "./masterService";
+import { decryptBytes } from "@/lib/crypto";
 import type { ProjectModel } from "@/models/types";
 
 /** Port of export_service.dart + the folder/CSV parts of
@@ -31,6 +33,19 @@ function timestampSuffix(): string {
 
 function csvEscape(value: string): string {
   return `"${value.replaceAll(";", ",").replaceAll("\n", " ")}"`;
+}
+
+function sanitizeFileName(name: string): string {
+  const trimmed = name.trim();
+  const sanitized = trimmed.replace(/[\\/:*?"<>|]/g, "_");
+  return sanitized || "datei.bin";
+}
+
+async function downloadUrlToFile(url: string, destinationPath: string): Promise<void> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  await writeFile(destinationPath, bytes);
 }
 
 export async function exportProjectsToCSV(userId: string): Promise<string | null> {
@@ -218,6 +233,9 @@ export async function exportProjectAsFolder(params: {
   includeChatLogs?: boolean;
   includeTimeTracking?: boolean;
   includeHistory?: boolean;
+  includeAttachments?: boolean;
+  includeMasters?: boolean;
+  onProgress?: (label: string) => void;
 }): Promise<string | null> {
   const destination = await openDialog({
     directory: true,
@@ -300,6 +318,47 @@ export async function exportProjectAsFolder(params: {
         }`
     );
     await writeTextFile(`${folder}/Verlauf.txt`, lines.join("\n") || "Kein Verlauf");
+  }
+
+  if (params.includeAttachments) {
+    const filesFolder = `${folder}/Dateien`;
+    await mkdir(filesFolder, { recursive: true });
+    let index = 0;
+    for (const url of p.attachments) {
+      index++;
+      const originalName = p.attachmentNames[url] ?? `datei_${index}`;
+      params.onProgress?.(`Datei ${index}/${p.attachments.length}: ${originalName}`);
+      try {
+        await downloadUrlToFile(url, `${filesFolder}/${sanitizeFileName(originalName)}`);
+      } catch {
+        // best-effort — skip files that fail to download, continue export
+      }
+    }
+  }
+
+  if (params.includeMasters) {
+    const mastersFolder = `${folder}/Master`;
+    await mkdir(mastersFolder, { recursive: true });
+    const masters = await getMastersOnce(p.id);
+    let index = 0;
+    for (const master of masters) {
+      index++;
+      params.onProgress?.(`Master ${index}/${masters.length}: ${master.versionName}`);
+      try {
+        const response = await fetch(master.fileUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const encryptedBytes = new Uint8Array(await response.arrayBuffer());
+        const plainBytes = master.encrypted
+          ? await decryptBytes(encryptedBytes, master.iv, master.fileKey)
+          : encryptedBytes;
+        const fileName = sanitizeFileName(
+          master.originalFileName || `${master.versionName}.bin`
+        );
+        await writeFile(`${mastersFolder}/${fileName}`, plainBytes);
+      } catch {
+        // best-effort — skip masters that fail to download, continue export
+      }
+    }
   }
 
   return folder;

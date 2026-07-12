@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   deleteDoc,
   query,
@@ -115,6 +116,11 @@ function mimeTypeForExtension(extension: string): string {
     default:
       return "audio/mpeg";
   }
+}
+
+export async function getMastersOnce(projectId: string): Promise<MasterVersionModel[]> {
+  const snapshot = await getDocs(query(mastersCollection(projectId), orderBy("createdAt", "desc")));
+  return snapshot.docs.map(masterVersionFromDocument);
 }
 
 export function watchMasters(

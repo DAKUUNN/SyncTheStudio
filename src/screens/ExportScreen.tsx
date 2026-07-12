@@ -28,7 +28,10 @@ export function ExportScreen() {
     chatLogs: true,
     timeTracking: true,
     history: true,
+    attachments: true,
+    masters: true,
   });
+  const [progressLabel, setProgressLabel] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -51,6 +54,7 @@ export function ExportScreen() {
       showToast((e as Error).message, "error");
     } finally {
       setBusy(null);
+      setProgressLabel(null);
     }
   };
 
@@ -157,6 +161,8 @@ export function ExportScreen() {
               ["chatLogs", t("export.includeChat")],
               ["timeTracking", t("export.includeTime")],
               ["history", t("export.includeHistory")],
+              ["attachments", t("export.includeAttachments")],
+              ["masters", t("export.includeMasters")],
             ] as const
           ).map(([key, label]) => (
             <label key={key} className="checkbox-row">
@@ -184,6 +190,9 @@ export function ExportScreen() {
                 includeChatLogs: includeOptions.chatLogs,
                 includeTimeTracking: includeOptions.timeTracking,
                 includeHistory: includeOptions.history,
+                includeAttachments: includeOptions.attachments,
+                includeMasters: includeOptions.masters,
+                onProgress: setProgressLabel,
               })
             )
           }
@@ -191,6 +200,11 @@ export function ExportScreen() {
           {busy === "folder" ? <Spinner /> : <IconFolder />}
           {t("export.exportFolder")}
         </button>
+        {busy === "folder" && progressLabel && (
+          <div className="text-xs text-muted" style={{ marginTop: 10 }}>
+            {progressLabel}
+          </div>
+        )}
       </div>
     </div>
   );
