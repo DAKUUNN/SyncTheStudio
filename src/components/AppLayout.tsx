@@ -26,6 +26,7 @@ import {
   IconLogout,
   IconPlus,
   IconExport,
+  IconHistory,
 } from "./Icons";
 
 interface PaletteItem {
@@ -98,6 +99,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
         icon: <IconInbox className="nav-icon" />,
         label: t("inbox.title"),
         badge: inboxCount,
+      },
+      {
+        path: "/activity",
+        icon: <IconHistory className="nav-icon" />,
+        label: t("activity.title"),
       },
     ],
     [t, inboxCount]

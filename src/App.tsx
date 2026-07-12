@@ -21,6 +21,7 @@ import { SettingsScreen } from "@/screens/SettingsScreen";
 import { ProfileScreen } from "@/screens/ProfileScreen";
 import { AdminScreen } from "@/screens/AdminScreen";
 import { ExportScreen } from "@/screens/ExportScreen";
+import { ActivityScreen } from "@/screens/ActivityScreen";
 import { PublicMasterShareScreen } from "@/screens/public/PublicMasterShareScreen";
 import { PublicCustomerUploadScreen } from "@/screens/public/PublicCustomerUploadScreen";
 
@@ -126,6 +127,7 @@ function AuthGate() {
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="/admin" element={<AdminScreen />} />
         <Route path="/export" element={<ExportScreen />} />
+        <Route path="/activity" element={<ActivityScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppLayout>

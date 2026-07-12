@@ -362,6 +362,26 @@
   accent-color: #a652ff;
 }
 
+.ab-waveform {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  cursor: pointer;
+}
+
+.ab-waveform-bar {
+  flex: 1;
+  min-height: 3px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.14);
+  transition: background 0.1s ease;
+}
+
+.ab-waveform-bar.played {
+  background: linear-gradient(180deg, #8d6bff, #a652ff);
+}
+
 .ab-player-times {
   display: flex;
   justify-content: space-between;
@@ -400,6 +420,35 @@
   background: rgb(255 255 255 / 0.04);
   font-size: 0.85rem;
   color: rgb(233 234 244 / 0.88);
+}
+
+.ab-voice-point {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ab-voice-preview {
+  height: 30px;
+  max-width: 220px;
+}
+
+.ab-mic-active {
+  border-color: rgb(255 107 107 / 0.6) !important;
+  color: #ff9d9d !important;
+  animation: ab-mic-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ab-mic-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgb(255 107 107 / 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(255 107 107 / 0);
+  }
 }
 
 .public-link-dropzone {

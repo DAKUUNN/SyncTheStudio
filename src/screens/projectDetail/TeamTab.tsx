@@ -6,6 +6,7 @@ import type { ProjectModel, UserModel } from "@/models/types";
 import { getUsersByIds, getAllUsers } from "@/services/authService";
 import {
   updateProjectMemberRole,
+  updateProjectMemberPermission,
   getProjectRolePresets,
   saveProjectRolePreset,
   leaveSharedProject,
@@ -18,7 +19,16 @@ import {
   finalizeAcceptedInvitationsForOwner,
 } from "@/services/invitationService";
 import { Avatar, Modal, Spinner } from "@/components/ui";
-import { IconPlus, IconUsers, IconEdit, IconTrash, IconSearch, IconCheck } from "@/components/Icons";
+import {
+  IconPlus,
+  IconUsers,
+  IconEdit,
+  IconTrash,
+  IconSearch,
+  IconCheck,
+  IconLock,
+  IconUnlock,
+} from "@/components/Icons";
 
 export function TeamTab({
   project,
@@ -139,6 +149,26 @@ export function TeamTab({
     }
   };
 
+  const onTogglePermission = async (member: UserModel, current: "viewer" | "editor") => {
+    if (!currentUser) return;
+    const next = current === "viewer" ? "editor" : "viewer";
+    try {
+      await updateProjectMemberPermission({
+        projectId: project.id,
+        ownerId: project.ownerId || currentUser.id,
+        memberId: member.id,
+        permission: next,
+      });
+      await onChanged();
+      showToast(
+        next === "viewer" ? t("team.permissionSetViewer") : t("team.permissionSetEditor"),
+        "success"
+      );
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    }
+  };
+
   const onRemoveMember = async (member: UserModel) => {
     if (!currentUser) return;
     try {
@@ -180,6 +210,8 @@ export function TeamTab({
               project.memberRoles[member.id] ??
               (member.id === project.ownerId ? ROLE_OWNER : "member");
             const isProjectOwner = member.id === project.ownerId;
+            const permission =
+              project.memberPermissions[member.id] === "viewer" ? "viewer" : "editor";
             return (
               <div key={member.id} className="list-row">
                 <Avatar
@@ -201,6 +233,14 @@ export function TeamTab({
                         {t("team.owner")}
                       </span>
                     )}
+                    {!isProjectOwner && permission === "viewer" && (
+                      <span
+                        className="badge"
+                        style={{ background: "var(--warning-soft)", color: "var(--warning)" }}
+                      >
+                        {t("team.viewerOnly")}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-muted truncate">
                     {role !== ROLE_OWNER ? role : member.email}
@@ -208,6 +248,15 @@ export function TeamTab({
                 </div>
                 {isOwner && !isProjectOwner && (
                   <>
+                    <button
+                      className="icon-btn"
+                      title={
+                        permission === "viewer" ? t("team.makeEditor") : t("team.makeViewer")
+                      }
+                      onClick={() => void onTogglePermission(member, permission)}
+                    >
+                      {permission === "viewer" ? <IconUnlock /> : <IconLock />}
+                    </button>
                     <button
                       className="icon-btn"
                       title={t("team.editRole")}

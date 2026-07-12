@@ -327,6 +327,14 @@ export const IconVolume = (p: IconProps) => (
   </Base>
 );
 
+export const IconMic = (p: IconProps) => (
+  <Base {...p}>
+    <rect width="6" height="12" x="9" y="2" rx="3" />
+    <path d="M5 10a7 7 0 0 0 14 0" />
+    <line x1="12" x2="12" y1="19" y2="22" />
+  </Base>
+);
+
 export const IconTimer = (p: IconProps) => (
   <Base {...p}>
     <line x1="10" x2="14" y1="2" y2="2" />

@@ -635,6 +635,36 @@ export async function updateProjectMemberRole(params: {
   }
 }
 
+export async function updateProjectMemberPermission(params: {
+  projectId: string;
+  ownerId: string;
+  memberId: string;
+  permission: "viewer" | "editor";
+}): Promise<void> {
+  if (params.memberId === params.ownerId) return; // owner always has full access
+
+  const ownRef = doc(projectsCollection(params.ownerId), params.projectId);
+  const ownDoc = await getDoc(ownRef);
+  if (!ownDoc.exists()) throw new Error("Projekt nicht gefunden");
+
+  const memberPermissions = parseStringMap(ownDoc.data()?.memberPermissions);
+  memberPermissions[params.memberId] = params.permission;
+
+  await updateDoc(ownRef, {
+    memberPermissions,
+    updatedAt: Timestamp.fromDate(new Date()),
+  });
+
+  const sharedRef = doc(sharedProjectsCollection(), params.projectId);
+  const sharedDoc = await getDoc(sharedRef);
+  if (sharedDoc.exists()) {
+    await updateDoc(sharedRef, {
+      memberPermissions,
+      updatedAt: Timestamp.fromDate(new Date()),
+    });
+  }
+}
+
 // ── Role presets (users/{uid}/private/projectRoles) ─────────────
 
 export async function getProjectRolePresets(userId: string): Promise<string[]> {
@@ -786,6 +816,42 @@ export async function getProjectHistory(
   } catch {
     return [];
   }
+}
+
+export interface ActivityFeedEntry extends ProjectHistoryEntry {
+  projectId: string;
+  projectName: string;
+}
+
+/** Cross-project activity feed — reuses getProjectHistory() per project
+ * (own + shared) rather than a new query shape, then merges + sorts. */
+export async function getRecentActivityAcrossProjects(
+  userId: string,
+  maxItems = 100
+): Promise<ActivityFeedEntry[]> {
+  const [ownProjects, sharedProjects] = await Promise.all([
+    getProjects(userId),
+    getSharedProjects(userId),
+  ]);
+  const byId = new Map<string, ProjectModel>();
+  for (const project of [...ownProjects, ...sharedProjects]) byId.set(project.id, project);
+  const projects = [...byId.values()];
+
+  const perProject = await Promise.all(
+    projects.map(async (project) => {
+      const history = await getProjectHistory(project.id, userId);
+      return history.map((entry) => ({
+        ...entry,
+        projectId: project.id,
+        projectName: project.name,
+      }));
+    })
+  );
+
+  return perProject
+    .flat()
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .slice(0, maxItems);
 }
 
 // ── Deletion (incl. storage cleanup) ────────────────────────────

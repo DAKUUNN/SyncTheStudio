@@ -1,8 +1,8 @@
 [package]
-name = "syncthestudio"
-version = "5.0.0"
-description = "SyncTheStudio - Mix & Master Projektmanagement"
-authors = ["SyncTheStudio"]
+name = "SyncTheStudio"
+version = "5.1.1"
+description = "SyncTheStudio - Projektmanagement"
+authors = ["Peak-Sense"]
 edition = "2021"
 
 [lib]

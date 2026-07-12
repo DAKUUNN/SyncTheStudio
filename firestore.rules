@@ -48,6 +48,17 @@ service cloud.firestore {
       return signedIn() && (isAdmin() || isSelf(userId) || isSharedMember(projectId));
     }
 
+    // "Viewer" members can read/toggle but never create or delete — the
+    // memberPermissions map defaults everyone to editor (missing entry =
+    // not a viewer) so this can never regress existing members' access.
+    function isViewerOnly(projectId) {
+      return signedIn() && sharedProjectExists(projectId) &&
+        sharedProjectDoc(projectId).data.ownerId != request.auth.uid &&
+        'memberPermissions' in sharedProjectDoc(projectId).data &&
+        request.auth.uid in sharedProjectDoc(projectId).data.memberPermissions &&
+        sharedProjectDoc(projectId).data.memberPermissions[request.auth.uid] == 'viewer';
+    }
+
     function protectedUserFieldsUnchanged() {
       return request.resource.data.role == resource.data.role &&
         request.resource.data.plan == resource.data.plan &&
@@ -166,6 +177,21 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attachments', 'attachmentNames', 'updatedAt']);
     }
 
+    // Payload caps for the anonymous public-review write paths — bounds how
+    // much a single unauthenticated submission can write, independent of
+    // the client-side throttle in PublicMasterShareScreen.tsx.
+    function isValidPublicRevisionTask() {
+      return request.resource.data.title.size() <= 300 &&
+        (!('description' in request.resource.data) ||
+          request.resource.data.description == null ||
+          request.resource.data.description.size() <= 2000);
+    }
+
+    function isValidPublicFeedback() {
+      return request.resource.data.taskTitles.size() <= 20 &&
+        request.resource.data.message.size() <= 6000;
+    }
+
     function isTimestampOnlyChange() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt']);
     }
@@ -281,14 +307,17 @@ service cloud.firestore {
       );
 
       match /tasks/{taskId} {
-        allow read, update, delete: if canAccessProject(projectId);
+        allow read, update: if canAccessProject(projectId);
+        allow delete: if canAccessProject(projectId) && !isViewerOnly(projectId);
         // Customers on an active master-review link can turn their revision
         // points into tasks directly (see PublicMasterShareScreen) — create
         // only, they can never read/modify existing tasks.
-        allow create: if canAccessProject(projectId) || isActiveMasterShare(projectId);
+        allow create: if (canAccessProject(projectId) && !isViewerOnly(projectId)) ||
+          (isActiveMasterShare(projectId) && isValidPublicRevisionTask());
 
         match /comments/{commentId} {
-          allow read, create, update, delete: if canAccessProject(projectId);
+          allow read, update: if canAccessProject(projectId);
+          allow create, delete: if canAccessProject(projectId) && !isViewerOnly(projectId);
         }
       }
 
@@ -309,7 +338,7 @@ service cloud.firestore {
         allow create: if signedIn() && (
           isAdmin() ||
           get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid ||
-          isActiveMasterShare(projectId)
+          (isActiveMasterShare(projectId) && isValidPublicFeedback())
         );
         allow update, delete: if signedIn() && (
           isAdmin() ||

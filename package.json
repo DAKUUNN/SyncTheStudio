@@ -1,9 +1,9 @@
 {
   "name": "syncthestudio",
   "private": true,
-  "version": "5.0.0",
+  "version": "5.1.1",
   "type": "module",
-  "description": "SyncTheStudio - Mix & Master Projektmanagement",
+  "description": "SyncTheStudio - Projektmanagement",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

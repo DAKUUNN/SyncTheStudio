@@ -7,6 +7,7 @@ import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
 import {
   formatFileSize,
+  isProjectViewer,
   isShareExpired,
   type MasterVersionModel,
   type MasterShareFeedback,
@@ -78,6 +79,8 @@ export function FilesTab({
   const [pendingMasterFile, setPendingMasterFile] = useState<string | null>(null);
   const [masterVersionName, setMasterVersionName] = useState("");
 
+  const isViewer = currentUser ? isProjectViewer(project, currentUser.id) : false;
+
   useEffect(() => {
     const unsubMasters = watchMasters(project.id, setMasters);
     const unsubFeedback = watchMasterFeedback(project.id, setFeedback);
@@ -93,6 +96,10 @@ export function FilesTab({
 
   const uploadFiles = async (files: { bytes: Uint8Array; name: string }[]) => {
     if (!currentUser) return;
+    if (isViewer) {
+      showToast(t("team.viewerActionBlocked"), "warning");
+      return;
+    }
     if (!hasPremiumStorage(currentUser)) {
       showToast(premiumStorageMessage(), "warning");
       return;
@@ -147,6 +154,10 @@ export function FilesTab({
 
   const onRemoveAttachment = async (url: string) => {
     if (!currentUser) return;
+    if (isViewer) {
+      showToast(t("team.viewerActionBlocked"), "warning");
+      return;
+    }
     try {
       await removeAttachment(currentUser.id, project.id, url);
       await deleteAttachmentByUrl(url);
@@ -167,6 +178,10 @@ export function FilesTab({
 
   const onPickMaster = async () => {
     if (!currentUser) return;
+    if (isViewer) {
+      showToast(t("team.viewerActionBlocked"), "warning");
+      return;
+    }
     if (!hasPremiumStorage(currentUser)) {
       showToast(premiumStorageMessage(), "warning");
       return;

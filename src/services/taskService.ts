@@ -239,18 +239,18 @@ export async function deleteComment(
  */
 export async function createTasksFromRevisionPoints(
   projectId: string,
-  points: string[],
+  points: { title: string; description?: string | null }[],
   createdBy: string
 ): Promise<void> {
   const base = Date.now();
   let index = 0;
   for (const point of points) {
-    const trimmed = point.trim();
+    const trimmed = point.title.trim();
     if (!trimmed) continue;
     await setDoc(doc(tasksCollection(projectId)), {
       projectId,
       title: trimmed,
-      description: null,
+      description: point.description?.trim() || null,
       isCompleted: false,
       createdAt: Timestamp.fromDate(new Date()),
       completedAt: null,

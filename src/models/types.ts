@@ -202,6 +202,9 @@ export interface ProjectModel {
   attachmentNames: Record<string, string>;
   sharedWith: string[];
   memberRoles: Record<string, string>;
+  /** uid -> "viewer" | "editor". Missing entry defaults to "editor" (the
+   * pre-existing behavior before this field was added). */
+  memberPermissions: Record<string, string>;
   referenceLink: string | null;
   referenceFileUrl: string | null;
   referenceFileName: string | null;
@@ -241,6 +244,7 @@ export function projectFromMap(data: DocData): ProjectModel {
     attachmentNames: parseStringMap(data.attachmentNames),
     sharedWith: parseStringList(data.sharedWith),
     memberRoles: parseStringMap(data.memberRoles),
+    memberPermissions: parseStringMap(data.memberPermissions),
     referenceLink: (data.referenceLink as string | undefined) ?? null,
     referenceFileUrl: (data.referenceFileUrl as string | undefined) ?? null,
     referenceFileName: (data.referenceFileName as string | undefined) ?? null,
@@ -266,6 +270,11 @@ export function projectFromMap(data: DocData): ProjectModel {
 
 export function projectFromDocument(doc: DocumentSnapshot): ProjectModel {
   return projectFromMap({ ...docData(doc), id: doc.id });
+}
+
+export function isProjectViewer(project: ProjectModel, userId: string): boolean {
+  if (project.ownerId === userId) return false;
+  return project.memberPermissions[userId] === "viewer";
 }
 
 export function isProjectOverdue(project: ProjectModel): boolean {

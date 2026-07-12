@@ -74,6 +74,9 @@ async function syncPublicMasterShareDoc(projectId: string): Promise<void> {
     passwordHash: (data.masterSharePasswordHash as string | undefined) ?? null,
     passwordSalt: (data.masterSharePasswordSalt as string | undefined) ?? null,
     expiresAt: data.masterShareExpiresAt ?? null,
+    // Mirrored so the review page can offer a "Kunden-Portal" upload tab
+    // without a second link/token — see PublicMasterShareScreen.tsx.
+    uploadActive: Boolean(data.customerUploadActive ?? false),
     updatedAt: serverTimestamp(),
   });
 }
@@ -473,6 +476,7 @@ export async function createOrUpdatePublicUploadLink(params: {
 
   await setDoc(projectDoc(params.project.id), updateData, { merge: true });
   await syncPublicUploadDoc(params.project.id);
+  await syncPublicMasterShareDoc(params.project.id);
 
   return {
     token,
@@ -512,4 +516,5 @@ export async function disablePublicUploadLink(projectId: string): Promise<void> 
     { merge: true }
   );
   await syncPublicUploadDoc(projectId);
+  await syncPublicMasterShareDoc(projectId);
 }

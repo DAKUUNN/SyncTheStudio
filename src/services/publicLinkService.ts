@@ -12,7 +12,8 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
-import { auth, db } from "@/firebase";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth, db, storage } from "@/firebase";
 import {
   masterVersionFromDocument,
   parseDate,
@@ -44,6 +45,9 @@ interface PublicProjectLinkBase {
 export interface PublicMasterShareAccess extends PublicProjectLinkBase {
   allowDownload: boolean;
   expiresAt: Date | null;
+  /** Whether this project also has an active customer-upload link — lets the
+   * review page offer a "Dateien hochladen" tab without a second link. */
+  uploadActive: boolean;
 }
 
 export interface PublicCustomerUploadAccess extends PublicProjectLinkBase {}
@@ -81,6 +85,7 @@ export async function getPublicMasterShareByToken(
     ...toPublicBase(data),
     allowDownload: Boolean(data.allowDownload ?? false),
     expiresAt: parseDate(data.expiresAt),
+    uploadActive: Boolean(data.uploadActive ?? false),
   };
 }
 
@@ -150,6 +155,22 @@ async function syncAttachmentIntoProjectCopies(
 
   await Promise.allSettled([applyUpdate(ownerRef), applyUpdate(sharedRef)]);
   await setDoc(rootRef, { updatedAt: serverTimestamp() }, { merge: true });
+}
+
+/**
+ * Voice-note revisions recorded on the public master review page — see
+ * storage.rules' voiceNotes/{projectId}/{fileName} match block, same
+ * anonymous-auth pattern as attachments (cross-service Firestore checks
+ * from Storage Rules don't work reliably in this project, see
+ * storage.rules' comment on the attachments block).
+ */
+export async function uploadVoiceNote(projectId: string, blob: Blob): Promise<string> {
+  await ensureAnonymousAuth();
+  const extension = blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm";
+  const path = `voiceNotes/${projectId}/${Date.now()}.${extension}`;
+  const ref = storageRef(storage, path);
+  const snapshot = await uploadBytes(ref, blob, { contentType: blob.type || "audio/webm" });
+  return getDownloadURL(snapshot.ref);
 }
 
 export async function uploadFilesViaPublicLink(params: {

@@ -72,6 +72,15 @@ service firebase.storage {
         request.resource.size < 750 * 1024 * 1024;
     }
 
+    // Voice-note revisions from the public master review page. Same
+    // anonymous-auth tradeoff as attachments above; capped much smaller
+    // since these are short spoken notes, not full stems.
+    match /voiceNotes/{projectId}/{fileName} {
+      allow read: if canAccessProject(projectId) || signedIn();
+      allow write: if (canAccessProject(projectId) || signedIn()) &&
+        request.resource.size < 50 * 1024 * 1024;
+    }
+
     match /files/{projectId}/{fileName} {
       allow read, write: if canAccessProject(projectId);
     }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
-import type { CommentModel, ProjectModel, TaskModel } from "@/models/types";
+import { isProjectViewer, type CommentModel, type ProjectModel, type TaskModel } from "@/models/types";
 import {
   watchTasks,
   createTask,
@@ -29,6 +29,10 @@ import {
   IconSearch,
 } from "@/components/Icons";
 
+function isVoiceNoteUrl(value: string): boolean {
+  return value.startsWith("http") && value.includes("/voiceNotes%2F");
+}
+
 export function TasksTab({ project }: { project: ProjectModel }) {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
@@ -45,6 +49,8 @@ export function TasksTab({ project }: { project: ProjectModel }) {
   const [dueDateValue, setDueDateValue] = useState("");
   const [search, setSearch] = useState("");
   const [showCompleted, setShowCompleted] = useState(true);
+
+  const isViewer = currentUser ? isProjectViewer(project, currentUser.id) : false;
 
   useEffect(() => {
     const unsubscribe = watchTasks(project.id, setTasks);
@@ -69,6 +75,10 @@ export function TasksTab({ project }: { project: ProjectModel }) {
 
   const onAddTask = async () => {
     if (!currentUser || !newTitle.trim()) return;
+    if (isViewer) {
+      showToast(t("team.viewerActionBlocked"), "warning");
+      return;
+    }
     try {
       await createTask({
         projectId: project.id,
@@ -83,6 +93,12 @@ export function TasksTab({ project }: { project: ProjectModel }) {
     } catch (e) {
       showToast((e as Error).message, "error");
     }
+  };
+
+  const guardViewer = (): boolean => {
+    if (!isViewer) return false;
+    showToast(t("team.viewerActionBlocked"), "warning");
+    return true;
   };
 
   const toggleExpanded = (taskId: string) => {
@@ -146,8 +162,16 @@ export function TasksTab({ project }: { project: ProjectModel }) {
                 </span>
               )}
             </div>
-            {task.description && (
-              <div className="text-xs text-muted truncate">{task.description}</div>
+            {task.description && isVoiceNoteUrl(task.description) ? (
+              <audio
+                controls
+                src={task.description}
+                style={{ height: 28, marginTop: 4, maxWidth: 260 }}
+              />
+            ) : (
+              task.description && (
+                <div className="text-xs text-muted truncate">{task.description}</div>
+              )
             )}
           </div>
           {task.dueDate && (
@@ -189,7 +213,7 @@ export function TasksTab({ project }: { project: ProjectModel }) {
           <button
             className="icon-btn"
             title={t("common.delete")}
-            onClick={() => void deleteTask(project.id, task.id)}
+            onClick={() => !guardViewer() && void deleteTask(project.id, task.id)}
           >
             <IconTrash />
           </button>
@@ -219,7 +243,9 @@ export function TasksTab({ project }: { project: ProjectModel }) {
                 <button
                   className="icon-btn"
                   style={{ width: 24, height: 24 }}
-                  onClick={() => void deleteSubtask(project.id, task.id, subtask.id)}
+                  onClick={() =>
+                    !guardViewer() && void deleteSubtask(project.id, task.id, subtask.id)
+                  }
                 >
                   <IconTrash style={{ width: 13, height: 13 }} />
                 </button>
@@ -227,7 +253,7 @@ export function TasksTab({ project }: { project: ProjectModel }) {
             ))}
             <SubtaskInput
               placeholder={t("tasks.addSubtask")}
-              onSubmit={(title) => void addSubtask(project.id, task.id, title)}
+              onSubmit={(title) => !guardViewer() && void addSubtask(project.id, task.id, title)}
             />
           </div>
         )}

@@ -7,16 +7,19 @@ import {
   ensureAnonymousAuth,
   getPublicMasterShareByToken,
   getPublicMasterVersions,
+  uploadVoiceNote,
   verifyPublicLinkPassword,
   type PublicMasterShareAccess,
 } from "@/services/publicLinkService";
 import { submitMasterFeedback } from "@/services/masterService";
 import { createTasksFromRevisionPoints } from "@/services/taskService";
 import { Spinner, formatDateTime } from "@/components/ui";
+import { UploadPanel } from "./UploadPanel";
 import {
   IconDownload,
   IconLink,
   IconLock,
+  IconMic,
   IconMusic,
   IconPlay,
   IconPause,
@@ -27,6 +30,15 @@ import {
 } from "@/components/Icons";
 
 const VOLUME_STORAGE_KEY = "sts_master_review_volume";
+const REVISION_THROTTLE_KEY = "sts_last_revision_submit";
+const REVISION_THROTTLE_MS = 15_000;
+
+/** Casual-abuse deterrent only (a fresh browser/incognito bypasses it) —
+ * the real gate is the payload cap enforced in firestore.rules. */
+function isThrottled(storageKey: string, minIntervalMs: number): boolean {
+  const last = Number(window.localStorage.getItem(storageKey) ?? "0");
+  return Date.now() - last < minIntervalMs;
+}
 
 function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
@@ -37,18 +49,64 @@ function downloadBlob(blob: Blob, fileName: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-async function fetchDecryptedBlob(master: MasterVersionModel): Promise<Blob> {
+async function decryptMasterBytes(master: MasterVersionModel): Promise<Uint8Array> {
   const response = await fetch(master.fileUrl);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const encryptedBytes = new Uint8Array(await response.arrayBuffer());
-  const plainBytes = master.encrypted
+  return master.encrypted
     ? await decryptBytes(encryptedBytes, master.iv, master.fileKey)
     : encryptedBytes;
-  const buffer = plainBytes.buffer.slice(
-    plainBytes.byteOffset,
-    plainBytes.byteOffset + plainBytes.byteLength
+}
+
+function bytesToBlob(bytes: Uint8Array, mimeType: string): Blob {
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
   ) as ArrayBuffer;
-  return new Blob([buffer], { type: master.mimeType || "audio/mpeg" });
+  return new Blob([buffer], { type: mimeType || "audio/mpeg" });
+}
+
+async function fetchDecryptedBlob(master: MasterVersionModel): Promise<Blob> {
+  const plainBytes = await decryptMasterBytes(master);
+  return bytesToBlob(plainBytes, master.mimeType);
+}
+
+const WAVEFORM_BUCKETS = 180;
+
+/** Best-effort — some browsers/formats may fail to decode, waveform just
+ * falls back to a plain seek bar in that case (see loadMaster's catch). */
+async function computeWaveformPeaks(bytes: Uint8Array): Promise<number[]> {
+  const AudioContextCtor =
+    window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!AudioContextCtor) return [];
+  const ctx = new AudioContextCtor();
+  try {
+    const buffer = bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength
+    ) as ArrayBuffer;
+    const audioBuffer = await ctx.decodeAudioData(buffer);
+    const channelData = audioBuffer.getChannelData(0);
+    const blockSize = Math.max(1, Math.floor(channelData.length / WAVEFORM_BUCKETS));
+    const peaks: number[] = [];
+    let max = 0;
+    for (let i = 0; i < WAVEFORM_BUCKETS; i++) {
+      let blockMax = 0;
+      const start = i * blockSize;
+      for (let j = 0; j < blockSize; j++) {
+        const value = Math.abs(channelData[start + j] ?? 0);
+        if (value > blockMax) blockMax = value;
+      }
+      peaks.push(blockMax);
+      if (blockMax > max) max = blockMax;
+    }
+    return max > 0 ? peaks.map((p) => p / max) : peaks;
+  } catch {
+    return [];
+  } finally {
+    void ctx.close();
+  }
 }
 
 function formatTime(seconds: number): string {
@@ -65,6 +123,10 @@ function loadStoredVolume(): number {
   return Number.isFinite(parsed) ? Math.min(1, Math.max(0, parsed)) : 1;
 }
 
+type RevisionPoint =
+  | { type: "text"; text: string }
+  | { type: "voice"; blob: Blob; url: string; durationSeconds: number; pinnedAtSeconds: number };
+
 export function PublicMasterShareScreen() {
   const { lang } = useI18n();
   const [share, setShare] = useState<PublicMasterShareAccess | null>(null);
@@ -74,6 +136,7 @@ export function PublicMasterShareScreen() {
   const [password, setPassword] = useState("");
   const [accessGranted, setAccessGranted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"review" | "upload">("review");
 
   useEffect(() => {
     const token = getPublicLinkToken();
@@ -214,7 +277,28 @@ export function PublicMasterShareScreen() {
                     </div>
                   )}
 
-                  {accessGranted && masters.length === 0 && (
+                  {accessGranted && share.uploadActive && (
+                    <div className="ab-version-list">
+                      <button
+                        className={`ab-version-pill${activeTab === "review" ? " active" : ""}`}
+                        onClick={() => setActiveTab("review")}
+                      >
+                        Review
+                      </button>
+                      <button
+                        className={`ab-version-pill${activeTab === "upload" ? " active" : ""}`}
+                        onClick={() => setActiveTab("upload")}
+                      >
+                        Dateien hochladen
+                      </button>
+                    </div>
+                  )}
+
+                  {accessGranted && activeTab === "upload" && share.uploadActive && (
+                    <UploadPanel projectId={share.projectId} ownerId={share.ownerId} />
+                  )}
+
+                  {accessGranted && activeTab === "review" && masters.length === 0 && (
                     <div className="public-link-empty">
                       <div>
                         <div className="public-link-empty-icon">
@@ -228,7 +312,7 @@ export function PublicMasterShareScreen() {
                     </div>
                   )}
 
-                  {accessGranted && masters.length > 0 && (
+                  {accessGranted && activeTab === "review" && masters.length > 0 && (
                     <MasterCompareStudio
                       projectId={share.projectId}
                       masters={masters}
@@ -259,6 +343,7 @@ function MasterCompareStudio({
 }) {
   const [activeMasterId, setActiveMasterId] = useState(masters[0]?.id ?? "");
   const [urlCache, setUrlCache] = useState<Record<string, string>>({});
+  const [peaksCache, setPeaksCache] = useState<Record<string, number[]>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -267,18 +352,25 @@ function MasterCompareStudio({
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState<number>(loadStoredVolume);
 
-  const [points, setPoints] = useState<string[]>([]);
+  const [points, setPoints] = useState<RevisionPoint[]>([]);
   const [pointDraft, setPointDraft] = useState("");
   const [authorName, setAuthorName] = useState(authorNameDefault);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [micError, setMicError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const urlCacheRef = useRef<Record<string, string>>({});
   const pendingSeekRef = useRef<number | null>(null);
   const wasPlayingRef = useRef(false);
   const volumeRef = useRef(volume);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const recordingStartTimeRef = useRef(0);
 
   useEffect(() => {
     urlCacheRef.current = urlCache;
@@ -292,6 +384,8 @@ function MasterCompareStudio({
   useEffect(
     () => () => {
       Object.values(urlCacheRef.current).forEach((url) => URL.revokeObjectURL(url));
+      if (recordingTimerRef.current) window.clearInterval(recordingTimerRef.current);
+      mediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
     },
     []
   );
@@ -308,10 +402,13 @@ function MasterCompareStudio({
     setLoadingId(masterId);
     setLoadError(null);
     try {
-      const blob = await fetchDecryptedBlob(master);
-      const url = URL.createObjectURL(blob);
+      const plainBytes = await decryptMasterBytes(master);
+      const url = URL.createObjectURL(bytesToBlob(plainBytes, master.mimeType));
       urlCacheRef.current = { ...urlCacheRef.current, [masterId]: url };
       setUrlCache((prev) => ({ ...prev, [masterId]: url }));
+      void computeWaveformPeaks(plainBytes).then((peaks) => {
+        if (peaks.length > 0) setPeaksCache((prev) => ({ ...prev, [masterId]: peaks }));
+      });
     } catch (e) {
       setLoadError((e as Error).message || "Audio konnte nicht geladen werden.");
     } finally {
@@ -377,32 +474,102 @@ function MasterCompareStudio({
   const addPoint = () => {
     const trimmed = pointDraft.trim();
     if (!trimmed) return;
-    setPoints((prev) => [...prev, trimmed]);
+    setPoints((prev) => [...prev, { type: "text", text: trimmed }]);
     setPointDraft("");
   };
 
   const removePoint = (index: number) => {
-    setPoints((prev) => prev.filter((_, i) => i !== index));
+    setPoints((prev) => {
+      const removed = prev[index];
+      if (removed?.type === "voice") URL.revokeObjectURL(removed.url);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const startRecording = async () => {
+    setMicError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      recordedChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(recordedChunksRef.current, {
+          type: recorder.mimeType || "audio/webm",
+        });
+        const url = URL.createObjectURL(blob);
+        const durationSeconds = (Date.now() - recordingStartTimeRef.current) / 1000;
+        setPoints((prev) => [
+          ...prev,
+          {
+            type: "voice",
+            blob,
+            url,
+            durationSeconds,
+            pinnedAtSeconds: audioRef.current?.currentTime ?? 0,
+          },
+        ]);
+        setRecording(false);
+        setRecordingSeconds(0);
+      };
+      mediaRecorderRef.current = recorder;
+      recordingStartTimeRef.current = Date.now();
+      recorder.start();
+      setRecording(true);
+      setRecordingSeconds(0);
+      recordingTimerRef.current = window.setInterval(
+        () => setRecordingSeconds((s) => s + 1),
+        1000
+      );
+    } catch (e) {
+      setMicError(
+        (e as Error).message || "Mikrofonzugriff wurde verweigert oder ist nicht verfuegbar."
+      );
+    }
+  };
+
+  const stopRecording = () => {
+    if (recordingTimerRef.current) window.clearInterval(recordingTimerRef.current);
+    mediaRecorderRef.current?.stop();
   };
 
   const onSubmit = async () => {
     if (points.length === 0) return;
+    if (isThrottled(REVISION_THROTTLE_KEY, REVISION_THROTTLE_MS)) {
+      setSubmitError("Bitte warte kurz, bevor du die naechste Revision sendest.");
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
     try {
+      window.localStorage.setItem(REVISION_THROTTLE_KEY, String(Date.now()));
       await ensureAnonymousAuth();
-      const createdTitles = await submitMasterFeedback({
+      const taskEntries: { title: string; description: string | null }[] = [];
+      for (const point of points) {
+        if (point.type === "text") {
+          taskEntries.push({ title: point.text, description: null });
+        } else {
+          const url = await uploadVoiceNote(projectId, point.blob);
+          taskEntries.push({
+            title: `Sprachnotiz bei ${formatTime(point.pinnedAtSeconds)}`,
+            description: url,
+          });
+        }
+      }
+      await submitMasterFeedback({
         projectId,
         authorName: authorName || "Kunde",
         versionId: activeMaster?.id ?? "",
         versionName: activeMaster?.versionName ?? "",
-        points,
+        points: taskEntries.map((t) => t.title),
       });
-      await createTasksFromRevisionPoints(
-        projectId,
-        createdTitles,
-        authorName.trim() || "Kunde"
-      );
+      await createTasksFromRevisionPoints(projectId, taskEntries, authorName.trim() || "Kunde");
+      points.forEach((p) => {
+        if (p.type === "voice") URL.revokeObjectURL(p.url);
+      });
       setPoints([]);
       setSubmitted(true);
     } catch (e) {
@@ -462,15 +629,39 @@ function MasterCompareStudio({
                 {isPlaying ? <IconPause /> : <IconPlay />}
               </button>
               <div className="ab-player-body">
-                <input
-                  className="ab-seek"
-                  type="range"
-                  min={0}
-                  max={duration || 0}
-                  step={0.1}
-                  value={Math.min(currentTime, duration || 0)}
-                  onChange={(e) => onSeek(Number(e.target.value))}
-                />
+                {activeMasterId && peaksCache[activeMasterId] ? (
+                  <div
+                    className="ab-waveform"
+                    onClick={(e) => {
+                      if (!duration) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+                      onSeek(ratio * duration);
+                    }}
+                  >
+                    {peaksCache[activeMasterId].map((peak, i) => {
+                      const playedRatio = duration > 0 ? currentTime / duration : 0;
+                      const isPlayed = i / peaksCache[activeMasterId].length <= playedRatio;
+                      return (
+                        <div
+                          key={i}
+                          className={`ab-waveform-bar${isPlayed ? " played" : ""}`}
+                          style={{ height: `${Math.max(10, peak * 100)}%` }}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <input
+                    className="ab-seek"
+                    type="range"
+                    min={0}
+                    max={duration || 0}
+                    step={0.1}
+                    value={Math.min(currentTime, duration || 0)}
+                    onChange={(e) => onSeek(Number(e.target.value))}
+                  />
+                )}
                 <div className="ab-player-times">
                   <span>{formatTime(currentTime)}</span>
                   <span>{formatTime(duration)}</span>
@@ -537,13 +728,32 @@ function MasterCompareStudio({
           <button className="public-link-button-secondary" onClick={addPoint} type="button">
             <IconPlus /> Hinzufuegen
           </button>
+          <button
+            className={`public-link-button-secondary${recording ? " ab-mic-active" : ""}`}
+            onClick={() => void (recording ? stopRecording() : startRecording())}
+            type="button"
+            title="Sprachnotiz aufnehmen"
+          >
+            <IconMic />
+            {recording ? formatTime(recordingSeconds) : ""}
+          </button>
         </div>
+
+        {micError && <div className="public-link-alert" style={{ marginBottom: 12 }}>{micError}</div>}
 
         {points.length > 0 && (
           <div className="ab-points-list">
             {points.map((point, index) => (
-              <div key={`${point}-${index}`} className="ab-point-row">
-                <span>{point}</span>
+              <div key={index} className="ab-point-row">
+                {point.type === "text" ? (
+                  <span>{point.text}</span>
+                ) : (
+                  <span className="ab-voice-point">
+                    <IconMic style={{ width: 13, height: 13 }} />
+                    Sprachnotiz bei {formatTime(point.pinnedAtSeconds)} ({formatTime(point.durationSeconds)})
+                    <audio controls src={point.url} className="ab-voice-preview" />
+                  </span>
+                )}
                 <button className="icon-btn" onClick={() => removePoint(index)} type="button">
                   <IconTrash style={{ width: 13, height: 13 }} />
                 </button>
