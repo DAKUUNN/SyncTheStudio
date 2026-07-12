@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
-import { IconCheck, IconEye, IconEyeOff } from "@/components/Icons";
+import { IconEye, IconEyeOff } from "@/components/Icons";
 import { Modal } from "@/components/ui";
 
 export function LoginScreen() {
@@ -62,45 +62,15 @@ export function LoginScreen() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-hero">
-        <div className="hero-logo">
-          <div className="brand-logo">STS</div>
-          {t("app.name")}
-        </div>
-        <div>
-          <div className="hero-headline">
-            Mix &amp; Master Projektmanagement für dein Studio.
-          </div>
-          <div className="hero-sub">
-            Projekte, Kunden, Deadlines, Master-Versionen und Team-Chat — alles an
-            einem Ort, Ende-zu-Ende organisiert.
-          </div>
-          <div className="hero-points">
-            <div className="hero-point">
-              <IconCheck /> Projekte &amp; Status-Workflows
-            </div>
-            <div className="hero-point">
-              <IconCheck /> Verschlüsselte Notizen, Chats &amp; Master
-            </div>
-            <div className="hero-point">
-              <IconCheck /> Kunden-Reviews über öffentliche Links
-            </div>
-            <div className="hero-point">
-              <IconCheck /> Zeiterfassung &amp; Export
-            </div>
-          </div>
-        </div>
-        <div className="text-xs" style={{ color: "rgb(226 232 240 / 0.5)" }}>
-          © {new Date().getFullYear()} SyncTheStudio
-        </div>
+      <div className="auth-brand">
+        <img src="/logo.png" alt="" />
+        <span className="auth-brand-name">{t("app.name")}</span>
       </div>
 
-      <div className="auth-form-column">
-        <div className="auth-card">
-          <h1>{t("login.signIn")}</h1>
-          <div className="auth-sub">{t("app.tagline")}</div>
+      <div className="auth-card">
+        <h1>{t("login.signIn")}</h1>
 
-          <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit}>
             <div className="field">
               <label className="field-label">{t("login.emailOrUsernameHint")}</label>
               <input
@@ -177,7 +147,6 @@ export function LoginScreen() {
               </Link>
             </span>
           </div>
-        </div>
       </div>
 
       {resetOpen && (

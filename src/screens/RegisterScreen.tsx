@@ -53,26 +53,15 @@ export function RegisterScreen() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-hero">
-        <div className="hero-logo">
-          <div className="brand-logo">STS</div>
-          {t("app.name")}
-        </div>
-        <div>
-          <div className="hero-headline">{t("register.createAccount")}</div>
-          <div className="hero-sub">{t("register.fillFields")}</div>
-        </div>
-        <div className="text-xs" style={{ color: "rgb(226 232 240 / 0.5)" }}>
-          © {new Date().getFullYear()} SyncTheStudio
-        </div>
+      <div className="auth-brand">
+        <img src="/logo.png" alt="" />
+        <span className="auth-brand-name">{t("app.name")}</span>
       </div>
 
-      <div className="auth-form-column">
-        <div className="auth-card">
-          <h1>{t("register.title")}</h1>
-          <div className="auth-sub">{t("register.fillFields")}</div>
+      <div className="auth-card">
+        <h1>{t("register.title")}</h1>
 
-          <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit}>
             <div className="field">
               <label className="field-label">{t("register.usernameLabel")}</label>
               <input
@@ -138,11 +127,10 @@ export function RegisterScreen() {
             </button>
           </form>
 
-          <div className="text-small text-muted" style={{ marginTop: 16, textAlign: "center" }}>
-            <Link to="/login" style={{ color: "var(--primary)", fontWeight: 600 }}>
-              {t("login.signIn")}
-            </Link>
-          </div>
+        <div className="text-small text-muted" style={{ marginTop: 16, textAlign: "center" }}>
+          <Link to="/login" style={{ color: "var(--primary)", fontWeight: 600 }}>
+            {t("login.signIn")}
+          </Link>
         </div>
       </div>
     </div>

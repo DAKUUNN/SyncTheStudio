@@ -61,12 +61,16 @@ function sanitizeStorageFileName(fileName: string): string {
 
 export async function uploadAvatar(
   imageBytes: Uint8Array,
-  userId: string
+  userId: string,
+  originalFileName?: string
 ): Promise<string> {
-  const fileName = `avatars/${userId}/${Date.now()}.jpg`;
-  const ref = storageRef(storage, fileName);
+  const extension = originalFileName?.includes(".")
+    ? originalFileName.split(".").pop()!.toLowerCase()
+    : "jpg";
+  const path = `avatars/${userId}/${Date.now()}.${extension}`;
+  const ref = storageRef(storage, path);
   const snapshot = await uploadBytes(ref, imageBytes as unknown as ArrayBuffer, {
-    contentType: "image/jpeg",
+    contentType: getContentType(extension),
     cacheControl: "public,max-age=3600",
   });
   return getDownloadURL(snapshot.ref);

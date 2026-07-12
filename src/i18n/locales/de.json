@@ -793,6 +793,7 @@
   "team.inviteHint": "Username oder E-Mail eingeben…",
   "team.inviteLabel": "Username oder E-Mail",
   "team.inviteNote": "Die Person erhält eine Einladung in ihrer Inbox.",
+  "team.invited": "Eingeladen",
   "team.memberRemoved": "Mitglied entfernt",
   "team.owner": "Besitzer",
   "team.remove": "Entfernen",

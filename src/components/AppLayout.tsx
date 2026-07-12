@@ -138,7 +138,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <div className="brand-logo">STS</div>
+          <img src="/logo.png" alt="" className="brand-logo" />
           <div>
             <div className="brand-name">{t("app.name")}</div>
             <div className="brand-tagline">{t("app.tagline")}</div>

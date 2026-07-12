@@ -38,23 +38,19 @@ function SplashScreen() {
       }}
     >
       <div style={{ textAlign: "center" }}>
-        <div
+        <img
+          src="/logo.png"
+          alt=""
           style={{
             width: 84,
             height: 84,
             borderRadius: 22,
             margin: "0 auto 20px",
-            background: "linear-gradient(135deg, var(--primary), var(--accent))",
-            display: "grid",
-            placeItems: "center",
-            fontSize: 26,
-            fontWeight: 800,
-            color: "#fff",
+            display: "block",
+            objectFit: "cover",
             boxShadow: "0 18px 44px rgb(0 0 0 / 0.45)",
           }}
-        >
-          STS
-        </div>
+        />
         <h1 style={{ color: "#fff" }}>{t("app.name")}</h1>
         <div style={{ opacity: 0.65, marginTop: 4 }}>{t("app.tagline")}</div>
         <div className="spinner" style={{ margin: "26px auto 0", borderTopColor: "#fff" }} />

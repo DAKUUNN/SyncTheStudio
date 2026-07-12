@@ -1,12 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
 import type { ProjectModel, UserModel } from "@/models/types";
-import {
-  getUsersByIds,
-  getUserByUsernameOrEmail,
-} from "@/services/authService";
+import { getUsersByIds, getAllUsers } from "@/services/authService";
 import {
   updateProjectMemberRole,
   getProjectRolePresets,
@@ -16,8 +13,8 @@ import {
   ROLE_OWNER,
 } from "@/services/projectService";
 import { createInvitation, hasPendingInvitation } from "@/services/invitationService";
-import { Avatar, Modal } from "@/components/ui";
-import { IconPlus, IconUsers, IconEdit, IconTrash } from "@/components/Icons";
+import { Avatar, Modal, Spinner } from "@/components/ui";
+import { IconPlus, IconUsers, IconEdit, IconTrash, IconSearch, IconCheck } from "@/components/Icons";
 
 export function TeamTab({
   project,
@@ -34,8 +31,10 @@ export function TeamTab({
 
   const [members, setMembers] = useState<UserModel[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteQuery, setInviteQuery] = useState("");
-  const [inviting, setInviting] = useState(false);
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [allUsers, setAllUsers] = useState<UserModel[] | null>(null);
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
   const [roleEditMember, setRoleEditMember] = useState<UserModel | null>(null);
   const [roleValue, setRoleValue] = useState("");
   const [rolePresets, setRolePresets] = useState<string[]>([]);
@@ -51,25 +50,38 @@ export function TeamTab({
     }
   }, [project.id, project.sharedWith.join(","), project.ownerId, currentUser?.id]);
 
-  const onInvite = async () => {
-    if (!currentUser || !inviteQuery.trim()) return;
-    setInviting(true);
+  useEffect(() => {
+    if (!inviteOpen || allUsers !== null) return;
+    void getAllUsers().then(setAllUsers);
+  }, [inviteOpen, allUsers]);
+
+  const invitableUsers = useMemo(() => {
+    if (!allUsers || !currentUser) return [];
+    const excluded = new Set<string>([
+      currentUser.id,
+      ...(project.ownerId ? [project.ownerId] : []),
+      ...project.sharedWith,
+    ]);
+    const query = inviteSearch.trim().toLowerCase();
+    return allUsers
+      .filter((user) => !excluded.has(user.id))
+      .filter(
+        (user) =>
+          !query ||
+          user.username.toLowerCase().includes(query) ||
+          user.email.toLowerCase().includes(query)
+      )
+      .sort((a, b) => a.username.localeCompare(b.username))
+      .slice(0, 60);
+  }, [allUsers, currentUser, project.ownerId, project.sharedWith, inviteSearch]);
+
+  const onInviteUser = async (user: UserModel) => {
+    if (!currentUser) return;
+    setInvitingId(user.id);
     try {
-      const user = await getUserByUsernameOrEmail(inviteQuery.trim());
-      if (!user) {
-        showToast(t("team.userNotFound"), "error");
-        return;
-      }
-      if (user.id === currentUser.id) {
-        showToast(t("team.cannotInviteSelf"), "warning");
-        return;
-      }
-      if (project.sharedWith.includes(user.id) || project.ownerId === user.id) {
-        showToast(t("team.alreadyMember"), "warning");
-        return;
-      }
       if (await hasPendingInvitation(project.id, user.id)) {
         showToast(t("team.alreadyInvited"), "warning");
+        setInvitedIds((prev) => new Set(prev).add(user.id));
         return;
       }
       await createInvitation({
@@ -88,13 +100,12 @@ export function TeamTab({
         currentUser.username,
         `Einladung gesendet an ${user.username}`
       );
-      setInviteOpen(false);
-      setInviteQuery("");
+      setInvitedIds((prev) => new Set(prev).add(user.id));
       showToast(t("team.invitationSent", { username: user.username }), "success");
     } catch (e) {
       showToast((e as Error).message, "error");
     } finally {
-      setInviting(false);
+      setInvitingId(null);
     }
   };
 
@@ -219,35 +230,88 @@ export function TeamTab({
       {inviteOpen && (
         <Modal
           title={t("team.invite")}
-          onClose={() => setInviteOpen(false)}
+          onClose={() => {
+            setInviteOpen(false);
+            setInviteSearch("");
+            setInvitedIds(new Set());
+          }}
           footer={
-            <>
-              <button className="btn btn-secondary" onClick={() => setInviteOpen(false)}>
-                {t("common.cancel")}
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={inviting}
-                onClick={() => void onInvite()}
-              >
-                {t("team.sendInvitation")}
-              </button>
-            </>
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                setInviteOpen(false);
+                setInviteSearch("");
+                setInvitedIds(new Set());
+              }}
+            >
+              {t("common.close")}
+            </button>
           }
         >
-          <div className="field">
-            <label className="field-label">{t("team.inviteLabel")}</label>
-            <input
-              className="input"
-              autoFocus
-              value={inviteQuery}
-              onChange={(e) => setInviteQuery(e.target.value)}
-              placeholder={t("team.inviteHint")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void onInvite();
-              }}
-            />
-            <div className="field-hint">{t("team.inviteNote")}</div>
+          <div className="field" style={{ marginBottom: 10 }}>
+            <div style={{ position: "relative" }}>
+              <IconSearch
+                style={{
+                  position: "absolute",
+                  left: 11,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 15,
+                  height: 15,
+                  color: "var(--text-faint)",
+                }}
+              />
+              <input
+                className="input"
+                autoFocus
+                style={{ paddingLeft: 34 }}
+                value={inviteSearch}
+                onChange={(e) => setInviteSearch(e.target.value)}
+                placeholder={t("team.inviteHint")}
+              />
+            </div>
+          </div>
+
+          <div style={{ maxHeight: 360, overflowY: "auto", margin: "0 -20px" }}>
+            {allUsers === null ? (
+              <div className="loading-center" style={{ padding: "30px 0" }}>
+                <Spinner />
+              </div>
+            ) : invitableUsers.length === 0 ? (
+              <div className="text-small text-muted" style={{ padding: "16px 20px" }}>
+                {t("team.userNotFound")}
+              </div>
+            ) : (
+              invitableUsers.map((user) => {
+                const alreadyInvited = invitedIds.has(user.id);
+                return (
+                  <div key={user.id} className="list-row" style={{ padding: "9px 20px" }}>
+                    <Avatar name={user.username} url={user.avatarUrl} size={32} online={user.isOnline} />
+                    <div className="grow" style={{ minWidth: 0 }}>
+                      <div className="text-small truncate" style={{ fontWeight: 600 }}>
+                        {user.username}
+                      </div>
+                      <div className="text-xs text-muted truncate">{user.email}</div>
+                    </div>
+                    <button
+                      className={`btn btn-sm ${alreadyInvited ? "btn-secondary" : "btn-primary"}`}
+                      disabled={invitingId === user.id || alreadyInvited}
+                      onClick={() => void onInviteUser(user)}
+                    >
+                      {invitingId === user.id ? (
+                        <Spinner />
+                      ) : alreadyInvited ? (
+                        <>
+                          <IconCheck style={{ width: 13, height: 13 }} /> {t("team.invited")}
+                        </>
+                      ) : (
+                        t("team.invite")
+                      )}
+                    </button>
+                  </div>
+                );
+              })
+            )}
           </div>
         </Modal>
       )}

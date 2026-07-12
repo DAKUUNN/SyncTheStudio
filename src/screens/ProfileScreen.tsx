@@ -37,7 +37,8 @@ export function ProfileScreen() {
       if (currentUser.avatarUrl) {
         await deleteAvatar(currentUser.avatarUrl);
       }
-      const url = await uploadAvatar(bytes, currentUser.id);
+      const fileName = selected.split(/[\\/]/).pop() ?? "avatar.jpg";
+      const url = await uploadAvatar(bytes, currentUser.id, fileName);
       await updateOwnProfile({ avatarUrl: url });
       showToast(t("profile.avatarUpdated"), "success");
     } catch (e) {
