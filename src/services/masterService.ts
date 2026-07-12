@@ -137,6 +137,37 @@ export function watchMasterFeedback(
   );
 }
 
+/**
+ * Called from the public (anonymous) master review page — see
+ * firestore.rules' isActiveMasterShare() exception on masterFeedback create.
+ * Each revision point also becomes its own Task via
+ * taskService.createTasksFromRevisionPoints(), called by the caller.
+ */
+export async function submitMasterFeedback(params: {
+  projectId: string;
+  authorName: string;
+  versionId: string;
+  versionName: string;
+  points: string[];
+}): Promise<string[]> {
+  const trimmedPoints = params.points.map((p) => p.trim()).filter(Boolean);
+  if (trimmedPoints.length === 0) return [];
+  await setDoc(doc(feedbackCollection(params.projectId)), {
+    projectId: params.projectId,
+    kind: "revision",
+    authorName: params.authorName.trim() || "Kunde",
+    message: trimmedPoints.map((p) => `• ${p}`).join("\n"),
+    versionId: params.versionId,
+    versionName: params.versionName,
+    timeSeconds: null,
+    timeLabel: null,
+    taskTitles: trimmedPoints,
+    createdTaskCount: trimmedPoints.length,
+    createdAt: serverTimestamp(),
+  });
+  return trimmedPoints;
+}
+
 export async function uploadMasterVersion(params: {
   project: ProjectModel;
   userId: string;

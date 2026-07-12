@@ -281,7 +281,11 @@ service cloud.firestore {
       );
 
       match /tasks/{taskId} {
-        allow read, create, update, delete: if canAccessProject(projectId);
+        allow read, update, delete: if canAccessProject(projectId);
+        // Customers on an active master-review link can turn their revision
+        // points into tasks directly (see PublicMasterShareScreen) — create
+        // only, they can never read/modify existing tasks.
+        allow create: if canAccessProject(projectId) || isActiveMasterShare(projectId);
 
         match /comments/{commentId} {
           allow read, create, update, delete: if canAccessProject(projectId);
@@ -302,7 +306,12 @@ service cloud.firestore {
 
       match /masterFeedback/{feedbackId} {
         allow read: if canAccessProject(projectId);
-        allow create, update, delete: if signedIn() && (
+        allow create: if signedIn() && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid ||
+          isActiveMasterShare(projectId)
+        );
+        allow update, delete: if signedIn() && (
           isAdmin() ||
           get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid
         );

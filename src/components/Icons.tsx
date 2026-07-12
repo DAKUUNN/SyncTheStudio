@@ -312,6 +312,13 @@ export const IconStop = (p: IconProps) => (
   </Base>
 );
 
+export const IconPause = (p: IconProps) => (
+  <Base {...p}>
+    <rect width="4" height="16" x="6" y="4" rx="1" />
+    <rect width="4" height="16" x="14" y="4" rx="1" />
+  </Base>
+);
+
 export const IconTimer = (p: IconProps) => (
   <Base {...p}>
     <line x1="10" x2="14" y1="2" y2="2" />

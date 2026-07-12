@@ -230,6 +230,39 @@ export async function deleteComment(
   await deleteDoc(doc(commentsCollection(projectId, taskId), commentId));
 }
 
+/**
+ * Called from the public (anonymous) master review page when a customer
+ * submits revision points — see firestore.rules' isActiveMasterShare()
+ * exception on tasks create. Skips getTasks()/content-key reads (both
+ * gated to project members) that createTask() needs; order uses a
+ * timestamp so these always sort after manually-created tasks.
+ */
+export async function createTasksFromRevisionPoints(
+  projectId: string,
+  points: string[],
+  createdBy: string
+): Promise<void> {
+  const base = Date.now();
+  let index = 0;
+  for (const point of points) {
+    const trimmed = point.trim();
+    if (!trimmed) continue;
+    await setDoc(doc(tasksCollection(projectId)), {
+      projectId,
+      title: trimmed,
+      description: null,
+      isCompleted: false,
+      createdAt: Timestamp.fromDate(new Date()),
+      completedAt: null,
+      dueDate: null,
+      createdBy,
+      subtasks: {},
+      order: base + index,
+    });
+    index++;
+  }
+}
+
 // ── Bulk import from templates (used by create screen) ──────────
 
 export async function createTasksFromTitles(

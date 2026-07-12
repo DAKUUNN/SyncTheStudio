@@ -1,16 +1,29 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/i18n";
 import { decryptBytes } from "@/lib/crypto";
 import { getPublicLinkToken } from "@/lib/publicLinkUrl";
-import { formatFileSize, type MasterVersionModel } from "@/models/types";
+import type { MasterVersionModel } from "@/models/types";
 import {
+  ensureAnonymousAuth,
   getPublicMasterShareByToken,
   getPublicMasterVersions,
   verifyPublicLinkPassword,
   type PublicMasterShareAccess,
 } from "@/services/publicLinkService";
+import { submitMasterFeedback } from "@/services/masterService";
+import { createTasksFromRevisionPoints } from "@/services/taskService";
 import { Spinner, formatDateTime } from "@/components/ui";
-import { IconDownload, IconLink, IconLock, IconMusic } from "@/components/Icons";
+import {
+  IconDownload,
+  IconLink,
+  IconLock,
+  IconMusic,
+  IconPlay,
+  IconPause,
+  IconPlus,
+  IconTrash,
+  IconCheck,
+} from "@/components/Icons";
 
 function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
@@ -35,6 +48,13 @@ async function fetchDecryptedBlob(master: MasterVersionModel): Promise<Blob> {
   return new Blob([buffer], { type: master.mimeType || "audio/mpeg" });
 }
 
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
 export function PublicMasterShareScreen() {
   const { lang } = useI18n();
   const [share, setShare] = useState<PublicMasterShareAccess | null>(null);
@@ -44,16 +64,6 @@ export function PublicMasterShareScreen() {
   const [password, setPassword] = useState("");
   const [accessGranted, setAccessGranted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewMasterId, setPreviewMasterId] = useState<string | null>(null);
-  const previewUrlRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     const token = getPublicLinkToken();
@@ -119,36 +129,6 @@ export function PublicMasterShareScreen() {
     }
   };
 
-  const onPreview = async (master: MasterVersionModel) => {
-    setBusyId(master.id);
-    setError(null);
-    try {
-      const blob = await fetchDecryptedBlob(master);
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-      const nextPreviewUrl = URL.createObjectURL(blob);
-      previewUrlRef.current = nextPreviewUrl;
-      setPreviewUrl(nextPreviewUrl);
-      setPreviewMasterId(master.id);
-    } catch (e) {
-      setError((e as Error).message || "Die Vorschau konnte nicht geladen werden.");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const onDownload = async (master: MasterVersionModel) => {
-    setBusyId(master.id);
-    setError(null);
-    try {
-      const blob = await fetchDecryptedBlob(master);
-      downloadBlob(blob, master.originalFileName || `${master.versionName}.bin`);
-    } catch (e) {
-      setError((e as Error).message || "Der Download konnte nicht gestartet werden.");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   return (
     <div className="public-link-page">
       <div className="public-link-wrap">
@@ -157,8 +137,8 @@ export function PublicMasterShareScreen() {
             <span className="public-link-kicker">Private Master Review</span>
             <h1 className="public-link-title">Studio Master Link</h1>
             <p className="public-link-subtitle">
-              Sicherer, dunkler Review-Space fuer freigegebene Master-Versionen.
-              Preview und Download laufen direkt ueber diesen Link.
+              Sicherer, dunkler Review-Space fuer freigegebene Master-Versionen. A/B
+              vergleichen, anhoeren und Revisionspunkte direkt einreichen.
             </p>
 
             {share && (
@@ -245,8 +225,6 @@ export function PublicMasterShareScreen() {
                   </div>
                 )}
 
-                {accessGranted && error && <div className="public-link-alert">{error}</div>}
-
                 {accessGranted && masters.length === 0 && (
                   <div className="public-link-empty">
                     <div>
@@ -262,53 +240,365 @@ export function PublicMasterShareScreen() {
                 )}
 
                 {accessGranted && masters.length > 0 && (
-                  <div className="public-link-stack">
-                    {masters.map((master) => (
-                      <article key={master.id} className="public-link-item">
-                        <div className="public-link-item-top">
-                          <div>
-                            <div className="public-link-item-title">{master.versionName}</div>
-                            <div className="public-link-item-copy">
-                              {master.originalFileName} · {formatFileSize(master.fileSize)} · {formatDateTime(master.createdAt, lang)}
-                            </div>
-                          </div>
-                          <div className="public-link-actions">
-                            <button
-                              className="public-link-button-secondary"
-                              disabled={busyId === master.id}
-                              onClick={() => void onPreview(master)}
-                            >
-                              {busyId === master.id ? <Spinner /> : <IconMusic />}
-                              Preview
-                            </button>
-                            {share.allowDownload && (
-                              <button
-                                className="public-link-button"
-                                disabled={busyId === master.id}
-                                onClick={() => void onDownload(master)}
-                              >
-                                {busyId === master.id ? <Spinner /> : <IconDownload />}
-                                Download
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {previewMasterId === master.id && previewUrl && (
-                          <div className="public-link-preview" style={{ marginTop: 14 }}>
-                            <div className="public-link-panel-copy" style={{ marginBottom: 10 }}>
-                              Live Preview
-                            </div>
-                            <audio controls className="public-link-audio" src={previewUrl} />
-                          </div>
-                        )}
-                      </article>
-                    ))}
-                  </div>
+                  <MasterCompareStudio
+                    projectId={share.projectId}
+                    masters={masters}
+                    allowDownload={share.allowDownload}
+                    authorNameDefault={share.customerName ?? ""}
+                  />
                 )}
               </div>
             ) : null}
           </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MasterCompareStudio({
+  projectId,
+  masters,
+  allowDownload,
+  authorNameDefault,
+}: {
+  projectId: string;
+  masters: MasterVersionModel[];
+  allowDownload: boolean;
+  authorNameDefault: string;
+}) {
+  const [slotAId, setSlotAId] = useState(masters[0]?.id ?? "");
+  const [slotBId, setSlotBId] = useState(masters[1]?.id ?? masters[0]?.id ?? "");
+  const [activeSlot, setActiveSlot] = useState<"A" | "B">("A");
+  const [urlCache, setUrlCache] = useState<Record<string, string>>({});
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const [points, setPoints] = useState<string[]>([]);
+  const [pointDraft, setPointDraft] = useState("");
+  const [authorName, setAuthorName] = useState(authorNameDefault);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const urlCacheRef = useRef<Record<string, string>>({});
+  const pendingSeekRef = useRef<number | null>(null);
+  const wasPlayingRef = useRef(false);
+
+  useEffect(() => {
+    urlCacheRef.current = urlCache;
+  }, [urlCache]);
+
+  useEffect(
+    () => () => {
+      Object.values(urlCacheRef.current).forEach((url) => URL.revokeObjectURL(url));
+    },
+    []
+  );
+
+  const activeMasterId = activeSlot === "A" ? slotAId : slotBId;
+  const activeMaster = useMemo(
+    () => masters.find((m) => m.id === activeMasterId) ?? null,
+    [masters, activeMasterId]
+  );
+  const slotAMaster = useMemo(() => masters.find((m) => m.id === slotAId) ?? null, [masters, slotAId]);
+  const slotBMaster = useMemo(() => masters.find((m) => m.id === slotBId) ?? null, [masters, slotBId]);
+
+  const loadMaster = async (masterId: string) => {
+    if (!masterId || urlCacheRef.current[masterId]) return;
+    const master = masters.find((m) => m.id === masterId);
+    if (!master) return;
+    setLoadingId(masterId);
+    setLoadError(null);
+    try {
+      const blob = await fetchDecryptedBlob(master);
+      const url = URL.createObjectURL(blob);
+      urlCacheRef.current = { ...urlCacheRef.current, [masterId]: url };
+      setUrlCache((prev) => ({ ...prev, [masterId]: url }));
+    } catch (e) {
+      setLoadError((e as Error).message || "Audio konnte nicht geladen werden.");
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (slotAId) void loadMaster(slotAId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotAId]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    const url = activeMasterId ? urlCache[activeMasterId] : undefined;
+    if (audio && url && audio.src !== url) {
+      audio.src = url;
+      audio.load();
+    }
+  }, [activeMasterId, urlCache]);
+
+  const switchToSlot = async (slot: "A" | "B") => {
+    if (slot === activeSlot) return;
+    const audio = audioRef.current;
+    wasPlayingRef.current = !!audio && !audio.paused;
+    pendingSeekRef.current = audio ? audio.currentTime : 0;
+    setActiveSlot(slot);
+    const targetId = slot === "A" ? slotAId : slotBId;
+    await loadMaster(targetId);
+  };
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) void audio.play();
+    else audio.pause();
+  };
+
+  const onSeek = (value: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = value;
+    setCurrentTime(value);
+  };
+
+  const onDownload = async (master: MasterVersionModel) => {
+    setDownloadingId(master.id);
+    setLoadError(null);
+    try {
+      const blob = await fetchDecryptedBlob(master);
+      downloadBlob(blob, master.originalFileName || `${master.versionName}.bin`);
+    } catch (e) {
+      setLoadError((e as Error).message || "Der Download konnte nicht gestartet werden.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const addPoint = () => {
+    const trimmed = pointDraft.trim();
+    if (!trimmed) return;
+    setPoints((prev) => [...prev, trimmed]);
+    setPointDraft("");
+  };
+
+  const removePoint = (index: number) => {
+    setPoints((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const onSubmit = async () => {
+    if (points.length === 0) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await ensureAnonymousAuth();
+      const createdTitles = await submitMasterFeedback({
+        projectId,
+        authorName: authorName || "Kunde",
+        versionId: activeMaster?.id ?? "",
+        versionName: activeMaster?.versionName ?? "",
+        points,
+      });
+      await createTasksFromRevisionPoints(
+        projectId,
+        createdTitles,
+        authorName.trim() || "Kunde"
+      );
+      setPoints([]);
+      setSubmitted(true);
+    } catch (e) {
+      setSubmitError((e as Error).message || "Die Revision konnte nicht gesendet werden.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const isBusy = loadingId === activeMasterId;
+
+  return (
+    <div className="public-link-stack">
+      <audio
+        ref={audioRef}
+        hidden
+        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+        onDurationChange={(e) => setDuration(e.currentTarget.duration || 0)}
+        onEnded={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onLoadedMetadata={(e) => {
+          const audio = e.currentTarget;
+          if (pendingSeekRef.current !== null) {
+            audio.currentTime = Math.min(pendingSeekRef.current, audio.duration || pendingSeekRef.current);
+            pendingSeekRef.current = null;
+          }
+          if (wasPlayingRef.current) {
+            void audio.play();
+            wasPlayingRef.current = false;
+          }
+        }}
+      />
+
+      <div className="ab-studio">
+        <div className="ab-slots">
+          <div className={`ab-slot${activeSlot === "A" ? " active" : ""}`}>
+            <button className="ab-slot-toggle" onClick={() => void switchToSlot("A")}>
+              <span className="ab-slot-label">A</span>
+              {slotAMaster?.versionName ?? "—"}
+            </button>
+            <select
+              className="public-link-select"
+              value={slotAId}
+              onChange={(e) => {
+                setSlotAId(e.target.value);
+                void loadMaster(e.target.value);
+              }}
+            >
+              {masters.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.versionName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="ab-vs">VS</div>
+
+          <div className={`ab-slot${activeSlot === "B" ? " active" : ""}`}>
+            <button className="ab-slot-toggle" onClick={() => void switchToSlot("B")}>
+              <span className="ab-slot-label">B</span>
+              {slotBMaster?.versionName ?? "—"}
+            </button>
+            <select
+              className="public-link-select"
+              value={slotBId}
+              onChange={(e) => {
+                setSlotBId(e.target.value);
+                void loadMaster(e.target.value);
+              }}
+            >
+              {masters.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.versionName}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="ab-player">
+          {isBusy ? (
+            <div className="ab-player-loading">
+              <Spinner /> Audio wird geladen…
+            </div>
+          ) : (
+            <>
+              <button className="ab-play-btn" onClick={togglePlay} disabled={!activeMaster}>
+                {isPlaying ? <IconPause /> : <IconPlay />}
+              </button>
+              <div className="ab-player-body">
+                <div className="ab-player-title">
+                  {activeMaster?.originalFileName ?? "Kein Master ausgewaehlt"}
+                </div>
+                <input
+                  className="ab-seek"
+                  type="range"
+                  min={0}
+                  max={duration || 0}
+                  step={0.1}
+                  value={Math.min(currentTime, duration || 0)}
+                  onChange={(e) => onSeek(Number(e.target.value))}
+                />
+                <div className="ab-player-times">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+              </div>
+              {allowDownload && activeMaster && (
+                <button
+                  className="public-link-button-secondary"
+                  disabled={downloadingId === activeMaster.id}
+                  onClick={() => void onDownload(activeMaster)}
+                  title="Aktive Version herunterladen"
+                >
+                  {downloadingId === activeMaster.id ? <Spinner /> : <IconDownload />}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        {loadError && <div className="public-link-alert">{loadError}</div>}
+      </div>
+
+      <div className="public-link-item" style={{ marginTop: 4 }}>
+        <div className="public-link-item-title" style={{ marginBottom: 4 }}>
+          Revisionsliste
+        </div>
+        <div className="public-link-panel-copy" style={{ marginBottom: 12 }}>
+          Trage jeden gewuenschten Aenderungspunkt einzeln ein. Beim Absenden landen sie
+          direkt als Aufgaben im Projekt.
+        </div>
+
+        <div className="field" style={{ marginBottom: 10 }}>
+          <label className="public-link-label">Dein Name (optional)</label>
+          <input
+            className="public-link-input"
+            value={authorName}
+            onChange={(e) => setAuthorName(e.target.value)}
+            placeholder="Kunde"
+          />
+        </div>
+
+        <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+          <input
+            className="public-link-input"
+            style={{ flex: 1 }}
+            placeholder="z. B. Hall bei 00:56 reinpacken"
+            value={pointDraft}
+            onChange={(e) => setPointDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addPoint();
+            }}
+          />
+          <button className="public-link-button-secondary" onClick={addPoint} type="button">
+            <IconPlus /> Hinzufuegen
+          </button>
+        </div>
+
+        {points.length > 0 && (
+          <div className="ab-points-list">
+            {points.map((point, index) => (
+              <div key={`${point}-${index}`} className="ab-point-row">
+                <span>{point}</span>
+                <button className="icon-btn" onClick={() => removePoint(index)} type="button">
+                  <IconTrash style={{ width: 13, height: 13 }} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {submitError && <div className="public-link-alert" style={{ marginTop: 10 }}>{submitError}</div>}
+        {submitted && (
+          <div className="public-link-success" style={{ marginTop: 10 }}>
+            <IconCheck style={{ width: 13, height: 13, verticalAlign: -2 }} /> Revision
+            gesendet — {points.length === 0 ? "die Punkte sind" : ""} jetzt im Projekt als
+            Aufgaben sichtbar.
+          </div>
+        )}
+
+        <div style={{ marginTop: 14 }}>
+          <button
+            className="public-link-button"
+            disabled={points.length === 0 || submitting}
+            onClick={() => void onSubmit()}
+          >
+            {submitting ? <Spinner /> : <IconCheck />}
+            Revision abschicken{points.length > 0 ? ` (${points.length})` : ""}
+          </button>
         </div>
       </div>
     </div>
