@@ -207,6 +207,7 @@ h3 { font-size: 0.9375rem; font-weight: 600; }
   font-weight: 500;
   cursor: pointer;
   text-align: left;
+  touch-action: manipulation;
   transition: background 0.12s ease, color 0.12s ease;
 }
 
@@ -277,6 +278,8 @@ h3 { font-size: 0.9375rem; font-weight: 600; }
 .content {
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 24px;
 }
 
@@ -357,6 +360,7 @@ h3 { font-size: 0.9375rem; font-weight: 600; }
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  touch-action: manipulation;
   transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
 }
 
@@ -809,6 +813,8 @@ input[type="range"] {
 .modal-body {
   padding: 4px 20px 16px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .modal-footer {
@@ -1131,6 +1137,8 @@ input[type="range"] {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1497,11 +1505,11 @@ input[type="range"] {
   }
 
   .main-column {
-    padding-bottom: calc(58px + env(safe-area-inset-bottom));
+    padding-bottom: calc(74px + env(safe-area-inset-bottom));
   }
 
   .content {
-    padding: 16px;
+    padding: 16px 16px 32px;
   }
 
   .mobile-tabbar {
@@ -1531,6 +1539,7 @@ input[type="range"] {
     font-size: 0.625rem;
     font-weight: 500;
     cursor: pointer;
+    touch-action: manipulation;
   }
 
   .mobile-tab.active {
@@ -1567,6 +1576,8 @@ input[type="range"] {
     padding: 16px 12px calc(16px + env(safe-area-inset-bottom));
     max-height: 70vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     animation: slideUp 0.16s ease;
   }
 

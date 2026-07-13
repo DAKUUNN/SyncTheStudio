@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
+import { useIsIOS } from "@/lib/platform";
 import { isProjectViewer, type CommentModel, type ProjectModel, type TaskModel } from "@/models/types";
 import {
   watchTasks,
@@ -37,6 +38,7 @@ export function TasksTab({ project }: { project: ProjectModel }) {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const { t, lang } = useI18n();
+  const isIOS = useIsIOS();
 
   const [tasks, setTasks] = useState<TaskModel[]>([]);
   const [newTitle, setNewTitle] = useState("");
@@ -130,7 +132,7 @@ export function TasksTab({ project }: { project: ProjectModel }) {
       <div
         key={task.id}
         style={{ borderBottom: "1px solid var(--border)" }}
-        draggable
+        draggable={!isIOS}
         onDragStart={() => setDragTaskId(task.id)}
         onDragOver={(e) => e.preventDefault()}
         onDrop={() => void onDropOnTask(task)}

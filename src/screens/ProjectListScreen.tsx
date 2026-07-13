@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
+import { useIsIOS } from "@/lib/platform";
 import {
   isProjectOverdue,
   priorityColor,
@@ -581,6 +582,7 @@ function BoardView({
   onStatusChange: (project: ProjectModel, statusId: string) => Promise<void>;
 }) {
   const { lang, t } = useI18n();
+  const isIOS = useIsIOS();
   const columns = useMemo(() => {
     const byStatus = new Map<string, ProjectModel[]>();
     for (const status of statuses) byStatus.set(status.id, []);
@@ -633,7 +635,7 @@ function BoardView({
               key={project.id}
               className="card card-pad"
               style={{ padding: 12, cursor: "pointer" }}
-              draggable
+              draggable={!isIOS}
               onDragStart={(e) =>
                 e.dataTransfer.setData("text/project-id", project.id)
               }

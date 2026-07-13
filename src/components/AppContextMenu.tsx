@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n";
 import { copyText, pasteText } from "@/lib/clipboard";
-import { useIsIOS } from "@/lib/platform";
+import { isIOS } from "@/lib/platform";
 import {
   IconClipboard,
   IconCopy,
@@ -37,14 +37,16 @@ function setNativeValue(el: EditableEl, value: string) {
  *  inside text fields, or reload/back/forward everywhere else. Desktop-only:
  *  there's no right-click on a touchscreen, and on iOS WKWebView a
  *  long-press synthesizes the same `contextmenu` event a scroll gesture
- *  starts with, so listening for it here would hijack scrolling. */
+ *  starts with, so listening for it here would hijack scrolling. Listener
+ *  attachment is gated on the awaited platform check (not the reactive
+ *  `useIsIOS` hook, which starts as "desktop" for one tick) so it's never
+ *  briefly live on iOS before the check resolves. */
 export function AppContextMenu() {
   const { t } = useI18n();
-  const isIOS = useIsIOS();
   const [state, setState] = useState<{ x: number; y: number; actions: MenuAction[] } | null>(null);
 
   useEffect(() => {
-    if (isIOS) return;
+    let cancelled = false;
 
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
@@ -157,19 +159,26 @@ export function AppContextMenu() {
     };
 
     const close = () => setState(null);
+    const onKeyDown = (e: KeyboardEvent) => e.key === "Escape" && close();
 
-    window.addEventListener("contextmenu", onContextMenu);
-    window.addEventListener("click", close);
-    window.addEventListener("blur", close);
-    window.addEventListener("keydown", (e) => e.key === "Escape" && close());
+    void isIOS().then((ios) => {
+      if (cancelled || ios) return;
+      window.addEventListener("contextmenu", onContextMenu);
+      window.addEventListener("click", close);
+      window.addEventListener("blur", close);
+      window.addEventListener("keydown", onKeyDown);
+    });
+
     return () => {
+      cancelled = true;
       window.removeEventListener("contextmenu", onContextMenu);
       window.removeEventListener("click", close);
       window.removeEventListener("blur", close);
+      window.removeEventListener("keydown", onKeyDown);
     };
-  }, [t, isIOS]);
+  }, [t]);
 
-  if (isIOS || !state) return null;
+  if (!state) return null;
 
   return (
     <div
