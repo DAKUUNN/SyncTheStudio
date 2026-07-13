@@ -1,5 +1,9 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, setPersistence, indexedDBLocalPersistence } from "firebase/auth";
+import {
+  initializeAuth,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+} from "firebase/auth";
 import { initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
@@ -18,9 +22,23 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
-void setPersistence(auth, indexedDBLocalPersistence).catch(() => {
-  /* falls back to default persistence */
+// getAuth(app) (no explicit persistence) makes the SDK auto-detect the best
+// available persistence, which tries IndexedDB first — and under Tauri's
+// custom `tauri://` scheme that IndexedDB open() call hangs forever (no
+// error, no resolution), which in turn wedges the SDK's whole init sequence
+// so onAuthStateChanged's first callback never fires either — confirmed on
+// iOS, where the mobile webview always loads through that scheme (even in
+// dev mode, unlike desktop's dev server which uses a real http:// origin).
+// initializeAuth() with an explicit persistence value skips that
+// auto-detection entirely, which is the standard fix for non-browser
+// environments (React Native, Capacitor, ...). localStorage-based
+// persistence has none of IndexedDB's origin/partitioning edge cases, so
+// it's used for every non-http(s) origin — that covers iOS/Android and
+// desktop production builds alike, not just this specific hang.
+const isRegularWebOrigin =
+  location.protocol === "http:" || location.protocol === "https:";
+export const auth = initializeAuth(app, {
+  persistence: isRegularWebOrigin ? indexedDBLocalPersistence : browserLocalPersistence,
 });
 
 // Long-polling auto detection keeps Firestore reliable inside the

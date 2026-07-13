@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n";
 import { checkForUpdate, installUpdateAndRestart, type AvailableUpdate } from "@/services/updateService";
+import { useIsIOS } from "@/lib/platform";
 import { Modal, ProgressBar } from "./ui";
 import { IconDownload, IconRefresh } from "./Icons";
 
@@ -9,9 +10,13 @@ const RECHECK_INTERVAL_MS = 30 * 60 * 1000;
 /** Checks for an app update shortly after startup, then keeps re-checking
  *  every 30 minutes for as long as the app stays open. As soon as an
  *  update is found, shows a dismissible popup with a one-click
- *  "install & restart" action. No-ops outside the Tauri desktop shell. */
+ *  "install & restart" action. No-ops outside the Tauri desktop shell, and
+ *  on iOS — Apple's guidelines prohibit self-updating outside App Store
+ *  review, and the updater plugin isn't even compiled into the iOS binary
+ *  (see src-tauri/src/lib.rs), so there's nothing here to check. */
 export function UpdateNotifier() {
   const { t } = useI18n();
+  const isIOS = useIsIOS();
   const [update, setUpdate] = useState<AvailableUpdate | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -19,6 +24,7 @@ export function UpdateNotifier() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isIOS) return;
     let cancelled = false;
     const runCheck = () => {
       void checkForUpdate().then((result) => {
@@ -35,9 +41,9 @@ export function UpdateNotifier() {
       window.clearTimeout(startTimer);
       window.clearInterval(interval);
     };
-  }, []);
+  }, [isIOS]);
 
-  if (!update || dismissed) return null;
+  if (isIOS || !update || dismissed) return null;
 
   const onInstall = async () => {
     setInstalling(true);

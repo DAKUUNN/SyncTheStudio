@@ -1,0 +1,17 @@
+{
+  "name": "functions",
+  "description": "Cloud Functions for SyncTheStudio",
+  "main": "index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.3.1"
+  },
+  "private": true
+}

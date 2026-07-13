@@ -3,13 +3,26 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
-import { IconEye, IconEyeOff } from "@/components/Icons";
+import { useIsIOS } from "@/lib/platform";
+import { IconApple, IconEye, IconEyeOff } from "@/components/Icons";
 import { Modal } from "@/components/ui";
 
 export function LoginScreen() {
-  const { login, resetPassword, error, clearError, isLoading } = useAuth();
+  const { login, loginWithApple, resetPassword, error, clearError, isLoading } = useAuth();
   const { showToast } = useToast();
   const { t } = useI18n();
+  const isIOS = useIsIOS();
+  const [appleBusy, setAppleBusy] = useState(false);
+
+  const onAppleSignIn = async () => {
+    clearError();
+    setAppleBusy(true);
+    const success = await loginWithApple();
+    setAppleBusy(false);
+    if (success) {
+      showToast(t("login.successAs", { username: t("login.signInWithApple") }), "success");
+    }
+  };
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -69,6 +82,24 @@ export function LoginScreen() {
 
       <div className="auth-card">
         <h1>{t("login.signIn")}</h1>
+
+        {isIOS && (
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary btn-lg btn-block"
+              style={{ marginBottom: 14 }}
+              disabled={appleBusy || isLoading}
+              onClick={() => void onAppleSignIn()}
+            >
+              <IconApple />{" "}
+              {appleBusy ? t("login.appleSigningIn") : t("login.signInWithApple")}
+            </button>
+            <div className="auth-divider">
+              <span>{t("common.or")}</span>
+            </div>
+          </>
+        )}
 
         <form onSubmit={onSubmit}>
             <div className="field">

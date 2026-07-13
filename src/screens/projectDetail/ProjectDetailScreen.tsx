@@ -168,7 +168,7 @@ export function ProjectDetailScreen() {
             </div>
           </div>
         </div>
-        <div className="row">
+        <div className="row row-wrap">
           <select
             className="select"
             style={{ width: "auto" }}
@@ -332,6 +332,7 @@ function InfoTab({
 
   return (
     <div
+      className="detail-2col-grid"
       style={{
         display: "grid",
         gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",

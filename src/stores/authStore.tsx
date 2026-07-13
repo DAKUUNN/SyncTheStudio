@@ -45,6 +45,7 @@ interface AuthContextValue {
     password: string;
     username: string;
   }) => Promise<boolean>;
+  loginWithApple: () => Promise<boolean>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
   changePassword: (params: {
@@ -75,21 +76,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initial session restore, mirrors AuthProvider.initialize()
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const user = await authService.getCurrentUser();
-        setCurrentUser(user);
-        if (user) {
-          void authService.updateUserPresence(user.id, true);
-          startDeadlineWatcher(user.id);
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      async (firebaseUser) => {
+        if (firebaseUser) {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+          if (user) {
+            void authService.updateUserPresence(user.id, true);
+            startDeadlineWatcher(user.id);
+          }
+        } else {
+          setCurrentUser(null);
+          stopDeadlineWatcher();
         }
-      } else {
-        setCurrentUser(null);
-        stopDeadlineWatcher();
+        setIsLoading(false);
+        setIsInitialized(true);
+      },
+      (err) => {
+        // Without this, a failed initial auth check would leave the app
+        // stuck on the splash screen forever instead of falling through to
+        // the login screen.
+        console.error("Auth initialization failed:", err);
+        setIsLoading(false);
+        setIsInitialized(true);
       }
-      setIsLoading(false);
-      setIsInitialized(true);
-    });
+    );
     return unsubscribe;
   }, []);
 
@@ -190,6 +202,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const loginWithApple = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const nativeResult = await invoke<{
+        identityToken: string;
+        rawNonce: string;
+        fullName: string | null;
+      }>("plugin:apple-signin|sign_in");
+      const user = await authService.loginWithApple({
+        identityToken: nativeResult.identityToken,
+        rawNonce: nativeResult.rawNonce,
+        fullName: nativeResult.fullName,
+      });
+      setCurrentUser(user);
+      void authService.updateUserPresence(user.id, true);
+      startDeadlineWatcher(user.id);
+      setIsLoading(false);
+      return true;
+    } catch (e) {
+      const message = (e as Error).message ?? "";
+      if (message !== "Abgebrochen") {
+        setError(message.replace("Exception: ", ""));
+      }
+      setIsLoading(false);
+      return false;
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -279,6 +321,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       remainingAttempts: MAX_LOGIN_ATTEMPTS - loginAttempts.current.length,
       login,
       register,
+      loginWithApple,
       logout,
       resetPassword,
       changePassword,
@@ -294,6 +337,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       login,
       register,
+      loginWithApple,
       logout,
       resetPassword,
       changePassword,

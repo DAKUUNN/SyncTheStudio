@@ -13,6 +13,8 @@ import {
 } from "@/services/invitationService";
 import { getProjects } from "@/services/projectService";
 import { hasPremiumStorage } from "@/services/planService";
+import { registerPushToken } from "@/services/pushService";
+import { useIsIOS } from "@/lib/platform";
 import { Avatar } from "./ui";
 import { OnboardingTour } from "./OnboardingTour";
 import {
@@ -42,10 +44,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
+  const isIOS = useIsIOS();
 
   const [unreadCount, setUnreadCount] = useState(0);
   const [inboxCount, setInboxCount] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -65,6 +69,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
       unsubInvitations();
     };
   }, [currentUser?.id]);
+
+  // Push notifications are iOS-only (no APNs/FCM plumbing on desktop).
+  // Silently no-ops if the user declines the system permission prompt —
+  // there's no in-app fallback to nag them into re-enabling it.
+  useEffect(() => {
+    if (!currentUser || !isIOS) return;
+    registerPushToken(currentUser.id).catch(() => {});
+  }, [currentUser?.id, isIOS]);
 
   // Global shortcut: Cmd/Ctrl+K opens the command palette
   useEffect(() => {
@@ -138,6 +150,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
     [location.pathname]
   );
 
+  // Mobile bottom tab bar: the 4 most-used destinations get their own tab
+  // (iOS HIG's soft cap), everything else — Aktivität, Einstellungen,
+  // Admin, Export, plus profile/logout — lives behind "Mehr".
+  const mobilePrimaryItems = navItems.slice(0, 4);
+  const mobileMoreItems = [navItems[4], ...bottomNavItems].filter(Boolean) as typeof navItems;
+  const mobileMoreActive = mobileMoreItems.some((item) => isActive(item.path));
+
   if (!currentUser) return null;
 
   return (
@@ -189,15 +208,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
               {item.label}
             </button>
           ))}
-          <button className="nav-item" data-tour="nav-export" onClick={() => navigate("/export")}>
-            <IconExport className="nav-icon" />
-            {t("export.title")}
-            {!hasPremiumStorage(currentUser) && (
-              <span className="tour-premium-badge" title={t("plan.premium")}>
-                ★
-              </span>
-            )}
-          </button>
+          {!isIOS && (
+            <button className="nav-item" data-tour="nav-export" onClick={() => navigate("/export")}>
+              <IconExport className="nav-icon" />
+              {t("export.title")}
+              {!hasPremiumStorage(currentUser) && (
+                <span className="tour-premium-badge" title={t("plan.premium")}>
+                  ★
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         <div className="sidebar-footer">
@@ -250,6 +271,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </button>
           <div className="topbar-spacer" />
           <button
+            className="icon-btn mobile-only"
+            data-tour="new-project"
+            title={t("home.newProject")}
+            onClick={() => navigate("/projects/new")}
+          >
+            <IconPlus />
+          </button>
+          <button
             className="icon-btn"
             data-tour="notifications"
             title={t("notifications.title")}
@@ -264,6 +293,102 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
         <main className="content">{children}</main>
       </div>
+
+      <nav className="mobile-tabbar">
+        {mobilePrimaryItems.map((item) => (
+          <button
+            key={item.path}
+            data-tour={`nav-${item.path.replace("/", "") || "home"}`}
+            className={`mobile-tab${isActive(item.path) ? " active" : ""}`}
+            onClick={() => navigate(item.path)}
+          >
+            <span className="mobile-tab-icon">
+              {item.icon}
+              {item.badge ? <span className="nav-badge mobile-tab-badge">{item.badge}</span> : null}
+            </span>
+            {item.label}
+          </button>
+        ))}
+        <button
+          className={`mobile-tab${mobileMoreActive ? " active" : ""}`}
+          data-tour="nav-more"
+          onClick={() => setMobileMoreOpen(true)}
+        >
+          <span className="mobile-tab-icon">
+            <IconSettings className="nav-icon" />
+          </span>
+          {t("common.more")}
+        </button>
+      </nav>
+
+      {mobileMoreOpen && (
+        <div className="modal-overlay" onMouseDown={() => setMobileMoreOpen(false)}>
+          <div
+            className="mobile-more-sheet"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <button
+              className="row sidebar-profile-btn"
+              style={{ marginBottom: 8 }}
+              onClick={() => {
+                setMobileMoreOpen(false);
+                navigate("/profile");
+              }}
+            >
+              <Avatar name={currentUser.username} url={currentUser.avatarUrl} size={34} online />
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div className="text-small truncate sidebar-profile-name">
+                  {currentUser.username}
+                </div>
+                <div className="text-xs text-muted truncate">
+                  {currentUser.plan === "vip" ? "Premium" : currentUser.role === "admin" ? "Admin" : "Free"}
+                </div>
+              </div>
+            </button>
+            {mobileMoreItems.map((item) => (
+              <button
+                key={item.path}
+                className={`nav-item${isActive(item.path) ? " active" : ""}`}
+                onClick={() => {
+                  setMobileMoreOpen(false);
+                  navigate(item.path);
+                }}
+              >
+                {item.icon}
+                {item.label}
+                {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
+              </button>
+            ))}
+            {!isIOS && (
+              <button
+                className="nav-item"
+                onClick={() => {
+                  setMobileMoreOpen(false);
+                  navigate("/export");
+                }}
+              >
+                <IconExport className="nav-icon" />
+                {t("export.title")}
+                {!hasPremiumStorage(currentUser) && (
+                  <span className="tour-premium-badge" title={t("plan.premium")}>
+                    ★
+                  </span>
+                )}
+              </button>
+            )}
+            <button
+              className="nav-item"
+              onClick={() => {
+                setMobileMoreOpen(false);
+                void logout();
+              }}
+            >
+              <IconLogout className="nav-icon" />
+              {t("common.logout")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {paletteOpen && (
         <CommandPalette
@@ -289,6 +414,7 @@ function CommandPalette({
 }) {
   const { t } = useI18n();
   const { currentUser } = useAuth();
+  const isIOS = useIsIOS();
   const [search, setSearch] = useState("");
   const [projectItems, setProjectItems] = useState<PaletteItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -317,9 +443,11 @@ function CommandPalette({
       { id: "notifications", label: t("notifications.title"), action: () => onNavigate("/notifications") },
       { id: "settings", label: t("settings.title"), action: () => onNavigate("/settings") },
       { id: "profile", label: t("nav.profile"), action: () => onNavigate("/profile") },
-      { id: "export", label: t("export.title"), action: () => onNavigate("/export") },
+      ...(isIOS
+        ? []
+        : [{ id: "export", label: t("export.title"), action: () => onNavigate("/export") }]),
     ],
-    [t, onNavigate]
+    [t, onNavigate, isIOS]
   );
 
   const filtered = useMemo(() => {

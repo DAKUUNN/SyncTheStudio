@@ -1,6 +1,7 @@
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithCredential,
   sendPasswordResetEmail,
   signOut,
   updateProfile,
@@ -8,6 +9,7 @@ import {
   verifyBeforeUpdateEmail,
   reauthenticateWithCredential,
   EmailAuthProvider,
+  OAuthProvider,
 } from "firebase/auth";
 import {
   collection,
@@ -175,6 +177,95 @@ export async function loginUser(params: {
       email: (data.email as string | undefined) ?? loginEmail,
       username: (data.username as string | undefined) ?? storedUsername ?? "User",
       bio,
+    });
+  } catch (e) {
+    const err = e as FirebaseErrorLike;
+    throw new Error(mapAuthError(err.code ?? "", err.message));
+  }
+}
+
+/** Exchanges a native "Sign in with Apple" result (identity token + raw
+ *  nonce from the AppleSigninPlugin) for a Firebase session. Creates the
+ *  Firestore user doc on first sign-in — mirrors createUser() — since
+ *  there's no separate "register" step for OAuth providers. Apple only
+ *  ever sends fullName on that very first authorization; every later
+ *  sign-in only carries the stable identity token, so it must be captured
+ *  now or not at all. */
+export async function loginWithApple(params: {
+  identityToken: string;
+  rawNonce: string;
+  fullName?: string | null;
+}): Promise<UserModel> {
+  try {
+    const provider = new OAuthProvider("apple.com");
+    const credential = provider.credential({
+      idToken: params.identityToken,
+      rawNonce: params.rawNonce,
+    });
+    const result = await signInWithCredential(auth, credential);
+    const userId = result.user.uid;
+    const snapshot = await getDoc(doc(usersCollection(), userId));
+
+    if (snapshot.exists()) {
+      const data = snapshot.data() as Record<string, unknown>;
+      if (!("preferredLanguageCode" in data)) {
+        void setDoc(
+          doc(usersCollection(), userId),
+          { preferredLanguageCode: defaultPreferredLanguageCode(), updatedAt: Timestamp.fromDate(new Date()) },
+          { merge: true }
+        );
+      }
+      let bio = (data.bio as string | undefined) ?? null;
+      const encryptedBio = (data.bioEnc as string | undefined) ?? null;
+      if (encryptedBio && encryptedBio.trim()) {
+        const userKey = await getOrCreateUserContentKey(userId);
+        bio = await decryptText(encryptedBio, userKey);
+      }
+      return userFromMap({
+        ...data,
+        id: userId,
+        email: (data.email as string | undefined) ?? result.user.email ?? "",
+        bio,
+      });
+    }
+
+    const username =
+      (params.fullName && params.fullName.trim()) ||
+      result.user.displayName ||
+      `Nutzer${userId.slice(0, 6)}`;
+    const email = result.user.email ?? "";
+    const now = new Date();
+    await setDoc(doc(usersCollection(), userId), {
+      email,
+      username,
+      usernameLower: username.toLowerCase(),
+      role: "user",
+      plan: "free",
+      preferredLanguageCode: defaultPreferredLanguageCode(),
+      isActive: true,
+      locked: false,
+      isOnline: false,
+      avatarUrl: null,
+      bio: null,
+      createdAt: Timestamp.fromDate(now),
+      lastLogin: null,
+      lastSeenAt: null,
+    });
+    if (params.fullName) {
+      void updateProfile(result.user, { displayName: params.fullName });
+    }
+
+    return userFromMap({
+      id: userId,
+      email,
+      username,
+      role: "user",
+      plan: "free",
+      preferredLanguageCode: defaultPreferredLanguageCode(),
+      isActive: true,
+      avatarUrl: null,
+      bio: null,
+      createdAt: now,
     });
   } catch (e) {
     const err = e as FirebaseErrorLike;

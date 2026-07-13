@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
 import { IconX } from "./Icons";
@@ -151,6 +151,7 @@ export function Avatar({
   size?: number;
   online?: boolean;
 }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const initials = name
     .split(/\s+/)
     .map((part) => part[0])
@@ -158,13 +159,18 @@ export function Avatar({
     .slice(0, 2)
     .join("")
     .toUpperCase();
+  const showImg = url && url !== failedUrl;
   return (
     <div style={{ position: "relative", flexShrink: 0 }}>
       <div
         className="avatar"
         style={{ width: size, height: size, fontSize: size * 0.38 }}
       >
-        {url ? <img src={url} alt={name} /> : initials || "?"}
+        {showImg ? (
+          <img src={url} alt={name} onError={() => setFailedUrl(url)} />
+        ) : (
+          initials || "?"
+        )}
       </div>
       {online !== undefined && (
         <span

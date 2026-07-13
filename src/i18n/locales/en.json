@@ -125,6 +125,7 @@
   "common.error": "Error",
   "common.errorWithMessage": "Error: {message}",
   "common.logout": "Log out",
+  "common.more": "More",
   "common.name": "Name",
   "common.notLoggedIn": "Not logged in",
   "common.ok": "OK",

@@ -146,12 +146,12 @@ export function TimeTab({ project }: { project: ProjectModel }) {
               </div>
             </div>
           </div>
-          <div className="row">
+          <div className="row row-wrap">
             {!activeTimerId ? (
               <>
                 <input
                   className="input"
-                  style={{ maxWidth: 240 }}
+                  style={{ maxWidth: 240, minWidth: 160, flex: "1 1 160px" }}
                   placeholder={t("time.descriptionHint")}
                   value={timerDescription}
                   onChange={(e) => setTimerDescription(e.target.value)}

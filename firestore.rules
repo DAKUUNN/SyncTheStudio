@@ -223,6 +223,14 @@ service cloud.firestore {
         allow read, create, update, delete: if isAdmin() || isSelf(userId);
       }
 
+      // Written by the device itself right after registering for push;
+      // read/deleted only by the owner (or admin). Cloud Functions send
+      // via the Admin SDK, which bypasses these rules entirely, so no
+      // broader read access is needed here.
+      match /pushTokens/{token} {
+        allow read, create, update, delete: if isAdmin() || isSelf(userId);
+      }
+
       match /projects/{projectId} {
         allow create: if signedIn() && (isSelf(userId) || isAdmin());
         allow read, delete: if canModifyUserProject(userId, projectId);

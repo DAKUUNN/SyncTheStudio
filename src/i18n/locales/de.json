@@ -125,6 +125,7 @@
   "common.error": "Fehler",
   "common.errorWithMessage": "Fehler: {message}",
   "common.logout": "Abmelden",
+  "common.more": "Mehr",
   "common.name": "Name",
   "common.notLoggedIn": "Nicht eingeloggt",
   "common.ok": "OK",

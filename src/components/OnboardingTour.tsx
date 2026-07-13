@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/stores/authStore";
 import { useI18n } from "@/i18n";
 import { hasPremiumStorage } from "@/services/planService";
+import { useIsIOS } from "@/lib/platform";
 import { IconArrowRight, IconCheck, IconStar, IconX } from "./Icons";
 
 export interface TourStep {
@@ -11,23 +12,30 @@ export interface TourStep {
   premium?: boolean;
 }
 
-function accountSteps(isPremium: boolean): TourStep[] {
+// On the mobile tab-bar layout, Aktivität/Einstellungen/Export/Profil live
+// inside the collapsed "Mehr" sheet instead of the always-visible desktop
+// sidebar — their sidebar-only data-tour ids never match anything, so the
+// step silently falls back to a centered, un-spotlighted card. Redirecting
+// those specific steps at the "Mehr" tab itself (always in the DOM) keeps
+// every step pointing at something real instead of nothing.
+function accountSteps(isPremium: boolean, isMobile: boolean): TourStep[] {
+  const sidebarOnly = (target: string) => (isMobile ? "nav-more" : target);
   return [
     { target: null, titleKey: "onboarding.welcome.title", descKey: "onboarding.welcome.desc" },
     { target: "new-project", titleKey: "onboarding.newProject.title", descKey: "onboarding.newProject.desc" },
     { target: "nav-projects", titleKey: "onboarding.projects.title", descKey: "onboarding.projects.desc" },
     { target: "nav-customers", titleKey: "onboarding.customers.title", descKey: "onboarding.customers.desc" },
-    { target: "nav-activity", titleKey: "onboarding.activity.title", descKey: "onboarding.activity.desc" },
+    { target: sidebarOnly("nav-activity"), titleKey: "onboarding.activity.title", descKey: "onboarding.activity.desc" },
     { target: "search", titleKey: "onboarding.search.title", descKey: "onboarding.search.desc" },
     { target: "notifications", titleKey: "onboarding.notifications.title", descKey: "onboarding.notifications.desc" },
-    { target: "nav-settings", titleKey: "onboarding.settings.title", descKey: "onboarding.settings.desc" },
+    { target: sidebarOnly("nav-settings"), titleKey: "onboarding.settings.title", descKey: "onboarding.settings.desc" },
     {
-      target: "nav-export",
+      target: sidebarOnly("nav-export"),
       titleKey: "onboarding.export.title",
       descKey: "onboarding.export.desc",
       premium: !isPremium,
     },
-    { target: "profile", titleKey: "onboarding.profile.title", descKey: "onboarding.profile.desc" },
+    { target: sidebarOnly("profile"), titleKey: "onboarding.profile.title", descKey: "onboarding.profile.desc" },
   ];
 }
 
@@ -52,9 +60,10 @@ export function restartOnboarding(userId: string): void {
  *  restartOnboarding(). */
 export function OnboardingTour() {
   const { currentUser } = useAuth();
+  const isMobile = useIsIOS();
   const steps = useMemo(
-    () => (currentUser ? accountSteps(hasPremiumStorage(currentUser)) : []),
-    [currentUser]
+    () => (currentUser ? accountSteps(hasPremiumStorage(currentUser), isMobile) : []),
+    [currentUser, isMobile]
   );
   if (!currentUser) return null;
   return (
@@ -114,7 +123,12 @@ export function TourRunner({
         return;
       }
       const el = document.querySelector(`[data-tour="${step.target}"]`);
-      setRect(el ? el.getBoundingClientRect() : null);
+      const box = el?.getBoundingClientRect();
+      // A matched-but-hidden element (display:none, e.g. the desktop
+      // sidebar collapsed on a mobile layout) reports a zero-size rect
+      // rather than being absent — treat that the same as "not found"
+      // instead of spotlighting an invisible 0×0 box.
+      setRect(box && box.width > 0 && box.height > 0 ? box : null);
     };
     update();
     window.addEventListener("resize", update);

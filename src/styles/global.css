@@ -1102,6 +1102,23 @@ input[type="range"] {
   font-size: 1.1875rem;
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: var(--text-faint);
+  font-size: 0.75rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 /* ── Chat ───────────────────────────────────────────────────── */
 
 .chat-column {
@@ -1434,4 +1451,179 @@ input[type="range"] {
   background: color-mix(in srgb, #f5b942 20%, transparent);
   color: #f5b942;
   vertical-align: middle;
+}
+
+/* ── Mobile shell (iOS / narrow viewports) ──────────────────────────
+ * The desktop sidebar+topbar shell doesn't fit a phone screen, so below
+ * the breakpoint it's replaced with a bottom tab bar (the 4 most-used
+ * destinations) plus a "Mehr" sheet for everything else. Both DOM trees
+ * are always rendered; only one is visible at a time via this breakpoint,
+ * which keeps the proven desktop sidebar markup completely untouched. */
+
+.mobile-tabbar {
+  display: none;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  .app-shell {
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .mobile-only {
+    display: inline-flex;
+  }
+
+  .topbar {
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  .topbar [data-tour="search"] {
+    min-width: 0 !important;
+    flex: 1;
+  }
+
+  .topbar [data-tour="search"] .kbd {
+    display: none;
+  }
+
+  .main-column {
+    padding-bottom: calc(58px + env(safe-area-inset-bottom));
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  .mobile-tabbar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 6px 2px calc(6px + env(safe-area-inset-bottom));
+    z-index: 500;
+  }
+
+  .mobile-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: none;
+    border: none;
+    padding: 6px 2px;
+    border-radius: var(--radius-sm);
+    color: var(--user-nav-unselected);
+    font-family: inherit;
+    font-size: 0.625rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .mobile-tab.active {
+    color: var(--user-nav-selected);
+  }
+
+  .mobile-tab-icon {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+  }
+
+  .mobile-tab-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .mobile-tab-badge {
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    margin-left: 0;
+  }
+
+  .mobile-more-sheet {
+    align-self: end;
+    justify-self: stretch;
+    width: 100%;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    padding: 16px 12px calc(16px + env(safe-area-inset-bottom));
+    max-height: 70vh;
+    overflow-y: auto;
+    animation: slideUp 0.16s ease;
+  }
+
+  /* Detail-tab two-column layouts (project Info tab, Files tab's
+   * files/masters sections) set their column ratio via an inline
+   * gridTemplateColumns style, which beats any non-!important media
+   * query rule — !important is needed here specifically to collapse
+   * them to one column on a phone-width screen. */
+  .detail-2col-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* List rows (tasks, files, team members…) pack a flexible title/name
+   * block plus several fixed-width badges/icon-buttons into one flex
+   * line. On a phone-width screen there isn't always room for both, so
+   * let the row wrap naturally instead of squeezing the flexible block
+   * into a near-single-word-per-line column. Rows that already fit at
+   * this width (e.g. a short team-member name) are unaffected — wrap
+   * only activates when content actually overflows the line. */
+  .list-row {
+    flex-wrap: wrap;
+  }
+
+  .list-row > .grow {
+    flex-basis: 200px;
+  }
+
+  /* Desktop data tables (customers, admin) have more columns than fit a
+   * phone screen. table-layout:auto lets the table's rendered width
+   * grow past its 100% CSS width to fit column content, so the overflow
+   * has to be caught one level up — the wrapping card — rather than on
+   * the table itself (which never actually exceeds its own, already
+   * content-driven, box). Scoped to cards that contain a table so every
+   * other `.card` in the app is untouched. */
+  .card:has(> .data-table) {
+    overflow-x: auto;
+  }
+
+  /* Card headers pair a title with trailing controls (search box,
+   * refresh/add buttons) via justify-content:space-between and no wrap —
+   * fine on desktop, but the controls get squeezed or clipped once a
+   * search input alone (often a fixed ~220px) is wider than a phone
+   * screen. Wrapping drops the controls to their own line below the
+   * title; space-between keeps single-line headers unaffected. */
+  .card-header {
+    flex-wrap: wrap;
+  }
+
+  /* Same story as .card-header, but for the many page-level ".row
+   * .row-between" headers (screen title + primary action button, etc.).
+   * Only a few of these already opted into row-wrap by hand, and real
+   * WebKit font metrics run slightly wider than this app's Chrome-based
+   * dev preview — a title+button pair that looked fine in the browser
+   * tool clipped for real on-device. Blanket wrap at the mobile
+   * breakpoint fixes the whole class at once instead of chasing each
+   * screen individually; rows that already fit are unaffected. */
+  .row-between {
+    flex-wrap: wrap;
+  }
 }

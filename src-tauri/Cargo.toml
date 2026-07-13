@@ -21,8 +21,12 @@ tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-os = "2"
+tauri-plugin-apple-signin = { path = "../plugins" }
+tauri-plugin-push-token = { path = "../plugins-push" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs"] }
 
 [profile.release]
 codegen-units = 1

@@ -153,6 +153,7 @@ export function DashboardScreen() {
       </div>
 
       <div
+        className="detail-2col-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)",

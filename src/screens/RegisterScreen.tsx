@@ -3,13 +3,31 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
+import { useIsIOS } from "@/lib/platform";
+import { IconApple } from "@/components/Icons";
 import { validateEmail, validatePassword, validateUsername } from "@/lib/validators";
 
 export function RegisterScreen() {
-  const { register, error, clearError, isLoading } = useAuth();
+  const { register, loginWithApple, error, clearError, isLoading } = useAuth();
   const { showToast } = useToast();
   const { t } = useI18n();
   const navigate = useNavigate();
+  const isIOS = useIsIOS();
+  const [appleBusy, setAppleBusy] = useState(false);
+
+  const onAppleSignIn = async () => {
+    clearError();
+    setAppleBusy(true);
+    const success = await loginWithApple();
+    setAppleBusy(false);
+    if (success) {
+      showToast(
+        `${t("register.successTitle")} ${t("register.successMessage")}`,
+        "success"
+      );
+      navigate("/");
+    }
+  };
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -60,6 +78,24 @@ export function RegisterScreen() {
 
       <div className="auth-card">
         <h1>{t("register.title")}</h1>
+
+        {isIOS && (
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary btn-lg btn-block"
+              style={{ marginBottom: 14 }}
+              disabled={appleBusy || isLoading}
+              onClick={() => void onAppleSignIn()}
+            >
+              <IconApple />{" "}
+              {appleBusy ? t("login.appleSigningIn") : t("login.signInWithApple")}
+            </button>
+            <div className="auth-divider">
+              <span>{t("common.or")}</span>
+            </div>
+          </>
+        )}
 
         <form onSubmit={onSubmit}>
             <div className="field">

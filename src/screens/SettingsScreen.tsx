@@ -88,6 +88,7 @@ export function SettingsScreen() {
     <div className="content-wide">
       <h1 style={{ marginBottom: 18 }}>{t("settings.title")}</h1>
       <div
+        className="detail-2col-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "210px minmax(0, 1fr)",
@@ -252,7 +253,10 @@ function AppearanceSettings() {
           </div>
         </div>
         <div className="card-pad" style={{ paddingTop: 10 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 18px" }}>
+          <div
+            className="detail-2col-grid"
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 18px" }}
+          >
             {PALETTE_FIELDS.map((field) => (
               <div key={field.key} className="row row-between" style={{ padding: "6px 0" }}>
                 <span className="text-small">{t(field.labelKey)}</span>

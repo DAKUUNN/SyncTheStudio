@@ -46,8 +46,17 @@ service firebase.storage {
         firestore.get(/databases/(default)/documents/projects/$(projectId)).data.customerUploadActive == true;
     }
 
+    // Public read: avatars are rendered via plain <img src="..."> tags
+    // throughout the app (sidebar, team lists, admin), which cannot attach
+    // an Authorization header — a signedIn() gate here 403s every single
+    // avatar image regardless of login state, since the browser's native
+    // image loader never carries the Firebase Auth token. The download URL's
+    // own unguessable token plus the uid-scoped path are the actual gate;
+    // profile pictures are low-sensitivity by nature (meant to be seen by
+    // teammates/customers wherever the app shows a user's identity). User
+    // explicitly confirmed this tradeoff.
     match /avatars/{userId}/{fileName} {
-      allow read: if signedIn();
+      allow read: if true;
       allow write: if isAdmin() || (signedIn() && request.auth.uid == userId);
     }
 

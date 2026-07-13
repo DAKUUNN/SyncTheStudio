@@ -38,6 +38,7 @@ import {
 } from "@/services/customizationService";
 import { validateProjectCreation } from "@/services/planService";
 import { uploadReferenceSong } from "@/services/storageService";
+import { useIsIOS } from "@/lib/platform";
 import { LoadingCenter, Modal } from "@/components/ui";
 import { IconArrowLeft, IconFile, IconTrash, IconLayers } from "@/components/Icons";
 
@@ -50,6 +51,7 @@ export function ProjectFormScreen() {
   const { projectId } = useParams<{ projectId: string }>();
   const isEdit = !!projectId;
   const { currentUser } = useAuth();
+  const isIOS = useIsIOS();
   const { showToast } = useToast();
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -593,16 +595,18 @@ export function ProjectFormScreen() {
             </select>
           </div>
         </div>
-        <div className="field">
-          <label className="field-label">{t("createProject.dawPathLabel")}</label>
-          <input
-            className="input"
-            value={dawProjectPath}
-            onChange={(e) => setDawProjectPath(e.target.value)}
-            placeholder="/Users/…/Projekt.als"
-          />
-          <div className="field-hint">{t("createProject.dawPathHint")}</div>
-        </div>
+        {!isIOS && (
+          <div className="field">
+            <label className="field-label">{t("createProject.dawPathLabel")}</label>
+            <input
+              className="input"
+              value={dawProjectPath}
+              onChange={(e) => setDawProjectPath(e.target.value)}
+              placeholder="/Users/…/Projekt.als"
+            />
+            <div className="field-hint">{t("createProject.dawPathHint")}</div>
+          </div>
+        )}
       </div>
 
       <div className="card card-pad" style={{ marginBottom: 16 }}>
