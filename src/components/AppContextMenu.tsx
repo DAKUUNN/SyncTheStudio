@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n";
 import { copyText, pasteText } from "@/lib/clipboard";
+import { useIsIOS } from "@/lib/platform";
 import {
   IconClipboard,
   IconCopy,
@@ -33,12 +34,18 @@ function setNativeValue(el: EditableEl, value: string) {
 
 /** Replaces the webview's default right-click menu (Inspect Element, View
  *  Page Source, Save As…) with app-relevant actions: clipboard operations
- *  inside text fields, or reload/back/forward everywhere else. */
+ *  inside text fields, or reload/back/forward everywhere else. Desktop-only:
+ *  there's no right-click on a touchscreen, and on iOS WKWebView a
+ *  long-press synthesizes the same `contextmenu` event a scroll gesture
+ *  starts with, so listening for it here would hijack scrolling. */
 export function AppContextMenu() {
   const { t } = useI18n();
+  const isIOS = useIsIOS();
   const [state, setState] = useState<{ x: number; y: number; actions: MenuAction[] } | null>(null);
 
   useEffect(() => {
+    if (isIOS) return;
+
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       const target = e.target as Element | null;
@@ -160,9 +167,9 @@ export function AppContextMenu() {
       window.removeEventListener("click", close);
       window.removeEventListener("blur", close);
     };
-  }, [t]);
+  }, [t, isIOS]);
 
-  if (!state) return null;
+  if (isIOS || !state) return null;
 
   return (
     <div
