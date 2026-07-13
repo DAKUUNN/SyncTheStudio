@@ -11,20 +11,23 @@
 		12B16B620ABF663AE4BC73D0 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 794BE643E076ED5229AA8CC8 /* main.mm */; };
 		1BE292782FF2ED39A8FDF789 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6612FDFF3774AE3BFE4E00F8 /* libapp.a */; };
 		2179F3320F396EB5885E3057 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C1D09D36044DCE8CE8789D48 /* UIKit.framework */; };
+		26E57999170B17BAF5140EED /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5F726B34F672E58200ECCC66 /* FirebaseCore */; };
 		2A926CB76D976138FE8574C2 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 79A5515728CA7CAC5886FF08 /* WebKit.framework */; };
 		5DC5A80C49FB99A621BAA061 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 90A25D1149F0BD8DFDF09F7A /* Metal.framework */; };
+		630B7BA175B2CB9D1663EB58 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CA13DCDB77EDE56C445A71F5 /* GoogleService-Info.plist */; };
 		76AA8D3C21846133838D2634 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5FE239A05EF3263E54C33658 /* LaunchScreen.storyboard */; };
 		8FC7AE51F23EF6BC1BD82310 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 91EFF636F7AC53C797EB5253 /* assets */; };
 		D5F80DEDFE0E45380C383015 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 06399BC9A6C3DC9A1B37BA13 /* MetalKit.framework */; };
 		DAF1644D7D07D4471FE3BD31 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FD3A17AE1945BA23B4DF5873 /* Assets.xcassets */; };
 		DCD42ECB36C985654F40B55B /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6D73D69C9CDC37F934EF6D98 /* QuartzCore.framework */; };
 		FAC7C00BE0583224B0A97106 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7C482EAB7237C04258888E35 /* CoreGraphics.framework */; };
+		FE56006863E63267F01C18F4 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = B2798B50B365AF34690D945B /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		03C62586391B2548A4657225 /* SyncTheStudio_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SyncTheStudio_iOS.entitlements; sourceTree = "<group>"; };
 		06399BC9A6C3DC9A1B37BA13 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
-		365CD234F9A3D8798AB1E7C3 /* main.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = main.rs; sourceTree = "<group>"; };
+		365CD234F9A3D8798AB1E7C3 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
 		3F857C506CC64473EF4105CA /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		5FE239A05EF3263E54C33658 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		6612FDFF3774AE3BFE4E00F8 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
@@ -32,12 +35,13 @@
 		794BE643E076ED5229AA8CC8 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		79A5515728CA7CAC5886FF08 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		7C482EAB7237C04258888E35 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
-		84007164C7B4AA715E514002 /* lib.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = lib.rs; sourceTree = "<group>"; };
+		84007164C7B4AA715E514002 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		90A25D1149F0BD8DFDF09F7A /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		91EFF636F7AC53C797EB5253 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
-		A4A2A25C9838C5F51F233EE8 /* SyncTheStudio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SyncTheStudio.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A4A2A25C9838C5F51F233EE8 /* SyncTheStudio_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SyncTheStudio_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C04EC2A8E31699A088AB622C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C1D09D36044DCE8CE8789D48 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		CA13DCDB77EDE56C445A71F5 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		E286F2D956D7E916853D9E69 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 		FD3A17AE1945BA23B4DF5873 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -55,6 +59,8 @@
 				0F5D3B1853B9F314571CE12C /* Security.framework in Frameworks */,
 				2179F3320F396EB5885E3057 /* UIKit.framework in Frameworks */,
 				2A926CB76D976138FE8574C2 /* WebKit.framework in Frameworks */,
+				26E57999170B17BAF5140EED /* FirebaseCore in Frameworks */,
+				FE56006863E63267F01C18F4 /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -64,7 +70,7 @@
 		29BB58E962964686FAEA5551 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A4A2A25C9838C5F51F233EE8 /* SyncTheStudio.app */,
+				A4A2A25C9838C5F51F233EE8 /* SyncTheStudio_iOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -111,6 +117,7 @@
 		60DA9FB02FF275437867FA16 /* SyncTheStudio_iOS */ = {
 			isa = PBXGroup;
 			children = (
+				CA13DCDB77EDE56C445A71F5 /* GoogleService-Info.plist */,
 				C04EC2A8E31699A088AB622C /* Info.plist */,
 				03C62586391B2548A4657225 /* SyncTheStudio_iOS.entitlements */,
 			);
@@ -150,6 +157,20 @@
 			path = Sources;
 			sourceTree = "<group>";
 		};
+		"TEMP_7494B151-1CE6-44F8-922D-97CE62D74B17" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
+			sourceTree = "<group>";
+		};
+		"TEMP_FAAF8EA9-88A7-4D93-B194-72B6BDE87EC8" /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = arm64;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -168,9 +189,11 @@
 			);
 			name = SyncTheStudio_iOS;
 			packageProductDependencies = (
+				5F726B34F672E58200ECCC66 /* FirebaseCore */,
+				B2798B50B365AF34690D945B /* FirebaseMessaging */,
 			);
 			productName = SyncTheStudio_iOS;
-			productReference = A4A2A25C9838C5F51F233EE8 /* SyncTheStudio.app */;
+			productReference = A4A2A25C9838C5F51F233EE8 /* SyncTheStudio_iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -181,6 +204,12 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					005528AD0FF8EEB62F448A4E = {
+						DevelopmentTeam = P926G79JGG;
+						ProvisioningStyle = Automatic;
+					};
+				};
 			};
 			buildConfigurationList = 0E6F6B1FE8C14E7A3741DAC8 /* Build configuration list for PBXProject "SyncTheStudio" */;
 			developmentRegion = en;
@@ -191,6 +220,9 @@
 			);
 			mainGroup = 2D2C1CC4B5DBAC6B5B7606E9;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				F5C2EC88CB621B9F29BB9512 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 29BB58E962964686FAEA5551 /* Products */;
 			projectDirPath = "";
@@ -207,6 +239,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DAF1644D7D07D4471FE3BD31 /* Assets.xcassets in Resources */,
+				630B7BA175B2CB9D1663EB58 /* GoogleService-Info.plist in Resources */,
 				76AA8D3C21846133838D2634 /* LaunchScreen.storyboard in Resources */,
 				8FC7AE51F23EF6BC1BD82310 /* assets in Resources */,
 			);
@@ -254,10 +287,13 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ARCHS = arm64;
+				ARCHS = (
+					arm64,
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SyncTheStudio_iOS/SyncTheStudio_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = P926G79JGG;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
@@ -270,20 +306,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				"LIBRARY_SEARCH_PATHS[arch=arm64]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION)",
-					"$(SDKROOT)/usr/lib/swift",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME)",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
-				);
-				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION)",
-					"$(SDKROOT)/usr/lib/swift",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME)",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
-				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.daakunSTS.app;
 				PRODUCT_NAME = "SyncTheStudio";
 				SDKROOT = iphoneos;
@@ -359,10 +383,13 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ARCHS = arm64;
+				ARCHS = (
+					arm64,
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SyncTheStudio_iOS/SyncTheStudio_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = P926G79JGG;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
@@ -375,20 +402,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				"LIBRARY_SEARCH_PATHS[arch=arm64]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION)",
-					"$(SDKROOT)/usr/lib/swift",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME)",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
-				);
-				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION)",
-					"$(SDKROOT)/usr/lib/swift",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME)",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
-				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.daakunSTS.app;
 				PRODUCT_NAME = "SyncTheStudio";
 				SDKROOT = iphoneos;
@@ -475,6 +490,30 @@
 			defaultConfigurationName = debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		F5C2EC88CB621B9F29BB9512 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5F726B34F672E58200ECCC66 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F5C2EC88CB621B9F29BB9512 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		B2798B50B365AF34690D945B /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F5C2EC88CB621B9F29BB9512 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B4BA38D0E8DBE7502D044A5C /* Project object */;
 }

@@ -7,7 +7,7 @@ fileGroups: [../../src]
 packages:
   Firebase:
     url: https://github.com/firebase/firebase-ios-sdk
-    minVersion: 11.0.0
+    from: 11.0.0
 configs:
   debug: debug
   release: release
@@ -35,7 +35,11 @@ targets:
       - path: Sources
       - path: Assets.xcassets
       - path: Externals
+        excludes:
+          - "**/*.a"
       - path: SyncTheStudio_iOS
+      - path: SyncTheStudio_iOS/GoogleService-Info.plist
+        buildPhase: resources
       - path: assets
         buildPhase: resources
         type: folder
@@ -55,17 +59,23 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 5.2.0
-        CFBundleVersion: "5.2.0"
+        CFBundleShortVersionString: 5.2.1
+        CFBundleVersion: "5.2.1"
         NSMicrophoneUsageDescription: Wird für die Aufnahme von Sprachnotizen bei Revisionen benötigt.
     entitlements:
       path: SyncTheStudio_iOS/SyncTheStudio_iOS.entitlements
+      properties:
+        com.apple.developer.applesignin:
+          - Default
+        aps-environment: development
     scheme:
       environmentVariables:
         RUST_BACKTRACE: full
         RUST_LOG: info
     settings:
       base:
+        DEVELOPMENT_TEAM: P926G79JGG
+        CODE_SIGN_STYLE: Automatic
         ENABLE_BITCODE: false
         ARCHS: [arm64]
         VALID_ARCHS: arm64 
