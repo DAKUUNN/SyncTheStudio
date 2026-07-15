@@ -237,8 +237,11 @@ export async function exportProjectAsFolder(params: {
   includeMasters?: boolean;
   onProgress?: (label: string) => void;
 }): Promise<string | null> {
+  // recursive: without it the dialog only scopes the folder itself, and
+  // every write inside the created export subfolder is rejected by fs.
   const destination = await openDialog({
     directory: true,
+    recursive: true,
     multiple: false,
     title: "Export-Zielordner auswählen",
   });

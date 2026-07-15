@@ -264,11 +264,15 @@ export function FilesTab({
 
   // ── Bulk download (desktop only) ─────────────────────────────
 
-  const downloadAllAttachments = async () => {
-    const urls = project.attachments;
-    if (urls.length === 0) return;
+  const bulkDownload = async (
+    items: { name: string; getBytes: () => Promise<Uint8Array> }[]
+  ) => {
+    if (items.length === 0) return;
+    // recursive: without it the dialog only scopes the folder itself, and
+    // every write to a file *inside* it is rejected by the fs plugin.
     const destination = await openFileDialog({
       directory: true,
+      recursive: true,
       multiple: false,
       title: t("downloadAll.pickFolder"),
     });
@@ -276,65 +280,59 @@ export function FilesTab({
 
     const usedNames = new Set<string>();
     let succeeded = 0;
-    for (let i = 0; i < urls.length; i++) {
-      const url = urls[i];
-      const name = sanitizeFileName(
-        project.attachmentNames[url] ?? url.split("/").pop() ?? `datei_${i + 1}`
-      );
-      setBulkProgress({ done: i, total: urls.length, label: name });
+    let firstError: Error | null = null;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      setBulkProgress({ done: i, total: items.length, label: item.name });
       try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const bytes = new Uint8Array(await response.arrayBuffer());
-        await writeFile(`${destination}/${uniqueFileName(name, usedNames)}`, bytes);
+        const bytes = await item.getBytes();
+        await writeFile(`${destination}/${uniqueFileName(item.name, usedNames)}`, bytes);
         succeeded++;
-      } catch {
+      } catch (e) {
         // best-effort — skip files that fail, report the count at the end
+        firstError ??= e as Error;
+        console.error("bulk download failed:", item.name, e);
       }
     }
     setBulkProgress(null);
-    showToast(
-      t("downloadAll.done", { count: succeeded, total: urls.length }),
-      succeeded === urls.length ? "success" : "warning"
-    );
-  };
-
-  const downloadAllMasters = async () => {
-    if (masters.length === 0) return;
-    const destination = await openFileDialog({
-      directory: true,
-      multiple: false,
-      title: t("downloadAll.pickFolder"),
-    });
-    if (!destination || typeof destination !== "string") return;
-
-    const usedNames = new Set<string>();
-    let succeeded = 0;
-    for (let i = 0; i < masters.length; i++) {
-      const master = masters[i];
-      const name = sanitizeFileName(
-        master.originalFileName || `${master.versionName}.bin`
+    if (succeeded === 0 && firstError) {
+      showToast(firstError.message, "error");
+    } else {
+      showToast(
+        t("downloadAll.done", { count: succeeded, total: items.length }),
+        succeeded === items.length ? "success" : "warning"
       );
-      setBulkProgress({ done: i, total: masters.length, label: name });
-      try {
-        const response = await fetch(master.fileUrl);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const encrypted = new Uint8Array(await response.arrayBuffer());
-        const plain = master.encrypted
-          ? await decryptBytes(encrypted, master.iv, master.fileKey)
-          : encrypted;
-        await writeFile(`${destination}/${uniqueFileName(name, usedNames)}`, plain);
-        succeeded++;
-      } catch {
-        // best-effort — skip masters that fail, report the count at the end
-      }
     }
-    setBulkProgress(null);
-    showToast(
-      t("downloadAll.done", { count: succeeded, total: masters.length }),
-      succeeded === masters.length ? "success" : "warning"
-    );
   };
+
+  const downloadAllAttachments = () =>
+    bulkDownload(
+      project.attachments.map((url, i) => ({
+        name: sanitizeFileName(
+          project.attachmentNames[url] ?? url.split("/").pop() ?? `datei_${i + 1}`
+        ),
+        getBytes: async () => {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return new Uint8Array(await response.arrayBuffer());
+        },
+      }))
+    );
+
+  const downloadAllMasters = () =>
+    bulkDownload(
+      masters.map((master) => ({
+        name: sanitizeFileName(master.originalFileName || `${master.versionName}.bin`),
+        getBytes: async () => {
+          const response = await fetch(master.fileUrl);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const encrypted = new Uint8Array(await response.arrayBuffer());
+          return master.encrypted
+            ? await decryptBytes(encrypted, master.iv, master.fileKey)
+            : encrypted;
+        },
+      }))
+    );
 
   const copyToClipboard = async (text: string) => {
     const ok = await copyText(text);
