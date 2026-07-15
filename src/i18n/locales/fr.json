@@ -358,5 +358,10 @@
   "projectDetail.timeDeleteFailed": "Impossible de supprimer l’entree de temps: {error}",
   "downloadAll.action": "Tout télécharger",
   "downloadAll.pickFolder": "Choisir le dossier de destination",
-  "downloadAll.done": "{count} sur {total} fichiers téléchargés"
+  "downloadAll.done": "{count} sur {total} fichiers téléchargés",
+  "export.dawSection": "Joindre le projet DAW",
+  "export.dawDescription": "Optionnel : ajoutez le fichier projet de votre DAW (ZIP) ou le dossier complet à l'export. Placé dans le sous-dossier “08 DAW-Projekt”.",
+  "export.dawPickTitle": "Choisir le projet DAW",
+  "export.dawPickFile": "Choisir ZIP/fichier",
+  "export.dawPickFolder": "Choisir le dossier"
 }

@@ -18,6 +18,8 @@
     "fs:allow-read-file",
     "fs:allow-write-file",
     "fs:allow-mkdir",
+    "fs:allow-copy-file",
+    "fs:allow-read-dir",
     {
       "identifier": "fs:scope",
       "allow": [
@@ -25,6 +27,12 @@
         "$DESKTOP/**",
         "$DOCUMENT/**",
         "$DOWNLOAD/**"
+      ]
+    },
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://firebasestorage.googleapis.com/**" }
       ]
     },
     {

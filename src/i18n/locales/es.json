@@ -358,5 +358,10 @@
   "projectDetail.timeDeleteFailed": "No se pudo eliminar el registro de tiempo: {error}",
   "downloadAll.action": "Descargar todo",
   "downloadAll.pickFolder": "Elegir carpeta de destino",
-  "downloadAll.done": "{count} de {total} archivos descargados"
+  "downloadAll.done": "{count} de {total} archivos descargados",
+  "export.dawSection": "Incluir proyecto de DAW",
+  "export.dawDescription": "Opcional: añade el archivo de proyecto de tu DAW (ZIP) o la carpeta completa al export. Se guarda en la subcarpeta “08 DAW-Projekt”.",
+  "export.dawPickTitle": "Elegir proyecto de DAW",
+  "export.dawPickFile": "Elegir ZIP/archivo",
+  "export.dawPickFolder": "Elegir carpeta"
 }

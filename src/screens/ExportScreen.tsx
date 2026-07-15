@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
@@ -32,6 +33,9 @@ export function ExportScreen() {
     masters: true,
   });
   const [progressLabel, setProgressLabel] = useState<string | null>(null);
+  const [dawProject, setDawProject] = useState<{ path: string; isDirectory: boolean } | null>(
+    null
+  );
 
   useEffect(() => {
     if (!currentUser) return;
@@ -40,6 +44,21 @@ export function ExportScreen() {
       if (list.length > 0) setSelectedProjectId(list[0].id);
     });
   }, [currentUser?.id]);
+
+  const pickDawProject = async (directory: boolean) => {
+    const selected = await openDialog({
+      directory,
+      recursive: directory,
+      multiple: false,
+      title: t("export.dawPickTitle"),
+      defaultPath: selectedProject?.dawProjectPath || undefined,
+      ...(directory
+        ? {}
+        : { filters: [{ name: "ZIP", extensions: ["zip", "7z", "rar", "tar", "gz"] }] }),
+    });
+    if (!selected || typeof selected !== "string") return;
+    setDawProject({ path: selected, isDirectory: directory });
+  };
 
   if (!currentUser) return null;
 
@@ -144,7 +163,10 @@ export function ExportScreen() {
           <select
             className="select"
             value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
+            onChange={(e) => {
+              setSelectedProjectId(e.target.value);
+              setDawProject(null);
+            }}
           >
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
@@ -177,6 +199,48 @@ export function ExportScreen() {
             </label>
           ))}
         </div>
+        <div className="field" style={{ marginBottom: 12 }}>
+          <label className="field-label">{t("export.dawSection")}</label>
+          <div className="text-xs text-muted" style={{ marginBottom: 8 }}>
+            {t("export.dawDescription")}
+          </div>
+          {dawProject ? (
+            <div className="row" style={{ gap: 8 }}>
+              <div
+                className="mono text-xs grow truncate"
+                style={{
+                  padding: "8px 10px",
+                  background: "var(--surface-2)",
+                  borderRadius: "var(--radius-sm)",
+                }}
+                title={dawProject.path}
+              >
+                {dawProject.path}
+              </div>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setDawProject(null)}
+              >
+                {t("common.remove")}
+              </button>
+            </div>
+          ) : (
+            <div className="row" style={{ gap: 8 }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => void pickDawProject(false)}
+              >
+                <IconFile /> {t("export.dawPickFile")}
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => void pickDawProject(true)}
+              >
+                <IconFolder /> {t("export.dawPickFolder")}
+              </button>
+            </div>
+          )}
+        </div>
         <button
           className="btn btn-primary"
           disabled={!selectedProject || busy !== null}
@@ -192,6 +256,8 @@ export function ExportScreen() {
                 includeHistory: includeOptions.history,
                 includeAttachments: includeOptions.attachments,
                 includeMasters: includeOptions.masters,
+                dawProjectPath: dawProject?.path ?? null,
+                dawProjectIsDirectory: dawProject?.isDirectory ?? false,
                 onProgress: setProgressLabel,
               })
             )

@@ -1,5 +1,6 @@
 import { save, open as openDialog } from "@tauri-apps/plugin-dialog";
-import { writeTextFile, writeFile, mkdir } from "@tauri-apps/plugin-fs";
+import { writeTextFile, writeFile, mkdir, copyFile, readDir } from "@tauri-apps/plugin-fs";
+import { fetchBytes } from "@/lib/download";
 import { getProjects, getProjectHistory } from "./projectService";
 import { getCustomers } from "./customerService";
 import { getTasks } from "./taskService";
@@ -42,10 +43,20 @@ function sanitizeFileName(name: string): string {
 }
 
 async function downloadUrlToFile(url: string, destinationPath: string): Promise<void> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  await writeFile(destinationPath, bytes);
+  await writeFile(destinationPath, await fetchBytes(url));
+}
+
+/** Copies a directory tree file-by-file (the fs plugin has no native
+ *  recursive copy). */
+async function copyDirRecursive(source: string, destination: string): Promise<void> {
+  await mkdir(destination, { recursive: true });
+  for (const entry of await readDir(source)) {
+    if (entry.isDirectory) {
+      await copyDirRecursive(`${source}/${entry.name}`, `${destination}/${entry.name}`);
+    } else if (entry.isFile) {
+      await copyFile(`${source}/${entry.name}`, `${destination}/${entry.name}`);
+    }
+  }
 }
 
 export async function exportProjectsToCSV(userId: string): Promise<string | null> {
@@ -223,8 +234,10 @@ export async function generateFullBackup(userId: string): Promise<string | null>
   return path;
 }
 
-/** Folder export for a single project (port of exportProjectsAsFolders):
- *  writes Projekt.txt, Aufgaben.txt, Chat.txt, Zeiterfassung.txt, Verlauf.txt */
+/** Folder export for a single project. Everything is numbered so the
+ *  export folder sorts in a fixed, readable order:
+ *    01 Projekt-Info.txt … 05 Verlauf.txt, 06 Dateien/, 07 Master/,
+ *    08 DAW-Projekt/ (optional copy of the picked DAW zip or folder). */
 export async function exportProjectAsFolder(params: {
   userId: string;
   project: ProjectModel;
@@ -235,6 +248,8 @@ export async function exportProjectAsFolder(params: {
   includeHistory?: boolean;
   includeAttachments?: boolean;
   includeMasters?: boolean;
+  dawProjectPath?: string | null;
+  dawProjectIsDirectory?: boolean;
   onProgress?: (label: string) => void;
 }): Promise<string | null> {
   // recursive: without it the dialog only scopes the folder itself, and
@@ -272,7 +287,7 @@ export async function exportProjectAsFolder(params: {
       `Anhänge (${p.attachments.length}):`,
       ...p.attachments.map((url) => `- ${p.attachmentNames[url] ?? url}`),
     ].join("\n");
-    await writeTextFile(`${folder}/Projekt.txt`, info);
+    await writeTextFile(`${folder}/01 Projekt-Info.txt`, info);
   }
 
   if (params.includeTodoList !== false) {
@@ -288,7 +303,7 @@ export async function exportProjectAsFolder(params: {
       ].join("\n");
     });
     await writeTextFile(
-      `${folder}/Aufgaben.txt`,
+      `${folder}/02 Aufgaben.txt`,
       lines.join("\n") || "Keine Aufgaben"
     );
   }
@@ -298,7 +313,7 @@ export async function exportProjectAsFolder(params: {
     const lines = messages.map(
       (m) => `[${formatDateTime(m.timestamp)}] ${m.username}: ${m.message}`
     );
-    await writeTextFile(`${folder}/Chat.txt`, lines.join("\n") || "Keine Nachrichten");
+    await writeTextFile(`${folder}/03 Chat.txt`, lines.join("\n") || "Keine Nachrichten");
   }
 
   if (params.includeTimeTracking !== false) {
@@ -309,7 +324,7 @@ export async function exportProjectAsFolder(params: {
         `${formatDateTime(e.startTime)} | ${e.username} | ${e.durationMinutes} min | ${e.description}`
     );
     lines.push("", `Gesamt: ${(total / 60).toFixed(2)} Stunden`);
-    await writeTextFile(`${folder}/Zeiterfassung.txt`, lines.join("\n"));
+    await writeTextFile(`${folder}/04 Zeiterfassung.txt`, lines.join("\n"));
   }
 
   if (params.includeHistory !== false) {
@@ -320,11 +335,11 @@ export async function exportProjectAsFolder(params: {
           h.fieldName ? ` (${h.fieldName}: ${h.oldValue ?? "-"} → ${h.newValue ?? "-"})` : ""
         }`
     );
-    await writeTextFile(`${folder}/Verlauf.txt`, lines.join("\n") || "Kein Verlauf");
+    await writeTextFile(`${folder}/05 Verlauf.txt`, lines.join("\n") || "Kein Verlauf");
   }
 
   if (params.includeAttachments) {
-    const filesFolder = `${folder}/Dateien`;
+    const filesFolder = `${folder}/06 Dateien`;
     await mkdir(filesFolder, { recursive: true });
     let index = 0;
     for (const url of p.attachments) {
@@ -340,7 +355,7 @@ export async function exportProjectAsFolder(params: {
   }
 
   if (params.includeMasters) {
-    const mastersFolder = `${folder}/Master`;
+    const mastersFolder = `${folder}/07 Master`;
     await mkdir(mastersFolder, { recursive: true });
     const masters = await getMastersOnce(p.id);
     let index = 0;
@@ -348,9 +363,7 @@ export async function exportProjectAsFolder(params: {
       index++;
       params.onProgress?.(`Master ${index}/${masters.length}: ${master.versionName}`);
       try {
-        const response = await fetch(master.fileUrl);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const encryptedBytes = new Uint8Array(await response.arrayBuffer());
+        const encryptedBytes = await fetchBytes(master.fileUrl);
         const plainBytes = master.encrypted
           ? await decryptBytes(encryptedBytes, master.iv, master.fileKey)
           : encryptedBytes;
@@ -361,6 +374,18 @@ export async function exportProjectAsFolder(params: {
       } catch {
         // best-effort — skip masters that fail to download, continue export
       }
+    }
+  }
+
+  if (params.dawProjectPath) {
+    const dawFolder = `${folder}/08 DAW-Projekt`;
+    const sourceName = params.dawProjectPath.split(/[\\/]/).pop() ?? "DAW-Projekt";
+    params.onProgress?.(`DAW-Projekt: ${sourceName}`);
+    if (params.dawProjectIsDirectory) {
+      await copyDirRecursive(params.dawProjectPath, `${dawFolder}/${sourceName}`);
+    } else {
+      await mkdir(dawFolder, { recursive: true });
+      await copyFile(params.dawProjectPath, `${dawFolder}/${sanitizeFileName(sourceName)}`);
     }
   }
 

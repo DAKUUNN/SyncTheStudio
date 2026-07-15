@@ -358,5 +358,10 @@
   "projectDetail.timeDeleteFailed": "Не удалось удалить запись времени: {error}",
   "downloadAll.action": "Скачать все",
   "downloadAll.pickFolder": "Выберите папку назначения",
-  "downloadAll.done": "Скачано файлов: {count} из {total}"
+  "downloadAll.done": "Скачано файлов: {count} из {total}",
+  "export.dawSection": "Приложить проект DAW",
+  "export.dawDescription": "Опционально: добавьте файл проекта вашей DAW (ZIP) или всю папку проекта в экспорт. Сохраняется в подпапке “08 DAW-Projekt”.",
+  "export.dawPickTitle": "Выбрать проект DAW",
+  "export.dawPickFile": "Выбрать ZIP/файл",
+  "export.dawPickFolder": "Выбрать папку"
 }

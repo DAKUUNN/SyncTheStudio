@@ -358,5 +358,10 @@
   "projectDetail.timeDeleteFailed": "Sure kaydi silinemedi: {error}",
   "downloadAll.action": "Tümünü indir",
   "downloadAll.pickFolder": "Hedef klasörü seçin",
-  "downloadAll.done": "{count}/{total} dosya indirildi"
+  "downloadAll.done": "{count}/{total} dosya indirildi",
+  "export.dawSection": "DAW projesini ekle",
+  "export.dawDescription": "İsteğe bağlı: DAW proje dosyanı (ZIP) veya tüm proje klasörünü dışa aktarmaya ekle. “08 DAW-Projekt” alt klasörüne kaydedilir.",
+  "export.dawPickTitle": "DAW projesi seç",
+  "export.dawPickFile": "ZIP/dosya seç",
+  "export.dawPickFolder": "Klasör seç"
 }

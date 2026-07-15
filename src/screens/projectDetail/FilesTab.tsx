@@ -2,6 +2,7 @@ import { useEffect, useState, type DragEvent } from "react";
 import { open as openFileDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { fetchBytes } from "@/lib/download";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
@@ -247,9 +248,7 @@ export function FilesTab({
 
   const onDownloadMaster = async (master: MasterVersionModel) => {
     try {
-      const response = await fetch(master.fileUrl);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const encrypted = new Uint8Array(await response.arrayBuffer());
+      const encrypted = await fetchBytes(master.fileUrl);
       const plain = master.encrypted
         ? await decryptBytes(encrypted, master.iv, master.fileKey)
         : encrypted;
@@ -311,11 +310,7 @@ export function FilesTab({
         name: sanitizeFileName(
           project.attachmentNames[url] ?? url.split("/").pop() ?? `datei_${i + 1}`
         ),
-        getBytes: async () => {
-          const response = await fetch(url);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          return new Uint8Array(await response.arrayBuffer());
-        },
+        getBytes: () => fetchBytes(url),
       }))
     );
 
@@ -324,9 +319,7 @@ export function FilesTab({
       masters.map((master) => ({
         name: sanitizeFileName(master.originalFileName || `${master.versionName}.bin`),
         getBytes: async () => {
-          const response = await fetch(master.fileUrl);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const encrypted = new Uint8Array(await response.arrayBuffer());
+          const encrypted = await fetchBytes(master.fileUrl);
           return master.encrypted
             ? await decryptBytes(encrypted, master.iv, master.fileKey)
             : encrypted;
