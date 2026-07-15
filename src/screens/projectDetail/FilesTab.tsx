@@ -35,6 +35,7 @@ import {
 import { hasPremiumStorage, premiumStorageMessage } from "@/services/planService";
 import { decryptBytes } from "@/lib/crypto";
 import { copyText } from "@/lib/clipboard";
+import { useIsIOS } from "@/lib/platform";
 import { Modal, ProgressBar, formatDateTime } from "@/components/ui";
 import {
   IconUpload,
@@ -49,6 +50,22 @@ import {
   IconMessage,
 } from "@/components/Icons";
 
+function sanitizeFileName(name: string): string {
+  const sanitized = name.trim().replace(/[\\/:*?"<>|]/g, "_");
+  return sanitized || "datei.bin";
+}
+
+/** "name.wav" → "name (2).wav" etc. until the name is unused in this batch. */
+function uniqueFileName(name: string, used: Set<string>): string {
+  let candidate = name;
+  for (let i = 2; used.has(candidate); i++) {
+    const dot = name.lastIndexOf(".");
+    candidate = dot > 0 ? `${name.slice(0, dot)} (${i})${name.slice(dot)}` : `${name} (${i})`;
+  }
+  used.add(candidate);
+  return candidate;
+}
+
 export function FilesTab({
   project,
   isOwner,
@@ -61,9 +78,15 @@ export function FilesTab({
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const { t, lang } = useI18n();
+  const isIOS = useIsIOS();
 
   const [section, setSection] = useState<"files" | "masters">("files");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [bulkProgress, setBulkProgress] = useState<{
+    done: number;
+    total: number;
+    label: string;
+  } | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
   const [masters, setMasters] = useState<MasterVersionModel[]>([]);
@@ -239,6 +262,80 @@ export function FilesTab({
     }
   };
 
+  // ── Bulk download (desktop only) ─────────────────────────────
+
+  const downloadAllAttachments = async () => {
+    const urls = project.attachments;
+    if (urls.length === 0) return;
+    const destination = await openFileDialog({
+      directory: true,
+      multiple: false,
+      title: t("downloadAll.pickFolder"),
+    });
+    if (!destination || typeof destination !== "string") return;
+
+    const usedNames = new Set<string>();
+    let succeeded = 0;
+    for (let i = 0; i < urls.length; i++) {
+      const url = urls[i];
+      const name = sanitizeFileName(
+        project.attachmentNames[url] ?? url.split("/").pop() ?? `datei_${i + 1}`
+      );
+      setBulkProgress({ done: i, total: urls.length, label: name });
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        await writeFile(`${destination}/${uniqueFileName(name, usedNames)}`, bytes);
+        succeeded++;
+      } catch {
+        // best-effort — skip files that fail, report the count at the end
+      }
+    }
+    setBulkProgress(null);
+    showToast(
+      t("downloadAll.done", { count: succeeded, total: urls.length }),
+      succeeded === urls.length ? "success" : "warning"
+    );
+  };
+
+  const downloadAllMasters = async () => {
+    if (masters.length === 0) return;
+    const destination = await openFileDialog({
+      directory: true,
+      multiple: false,
+      title: t("downloadAll.pickFolder"),
+    });
+    if (!destination || typeof destination !== "string") return;
+
+    const usedNames = new Set<string>();
+    let succeeded = 0;
+    for (let i = 0; i < masters.length; i++) {
+      const master = masters[i];
+      const name = sanitizeFileName(
+        master.originalFileName || `${master.versionName}.bin`
+      );
+      setBulkProgress({ done: i, total: masters.length, label: name });
+      try {
+        const response = await fetch(master.fileUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const encrypted = new Uint8Array(await response.arrayBuffer());
+        const plain = master.encrypted
+          ? await decryptBytes(encrypted, master.iv, master.fileKey)
+          : encrypted;
+        await writeFile(`${destination}/${uniqueFileName(name, usedNames)}`, plain);
+        succeeded++;
+      } catch {
+        // best-effort — skip masters that fail, report the count at the end
+      }
+    }
+    setBulkProgress(null);
+    showToast(
+      t("downloadAll.done", { count: succeeded, total: masters.length }),
+      succeeded === masters.length ? "success" : "warning"
+    );
+  };
+
   const copyToClipboard = async (text: string) => {
     const ok = await copyText(text);
     showToast(ok ? t("common.copied") : t("common.error"), ok ? "success" : "error");
@@ -322,6 +419,15 @@ export function FilesTab({
                     ★ {t("plan.premium")}
                   </span>
                 )}
+                {!isIOS && project.attachments.length > 0 && (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={bulkProgress !== null}
+                    onClick={() => void downloadAllAttachments()}
+                  >
+                    <IconDownload /> {t("downloadAll.action")}
+                  </button>
+                )}
                 <button className="btn btn-primary btn-sm" onClick={() => void pickAndUpload()}>
                   <IconUpload /> {t("attachments.uploadAction")}
                 </button>
@@ -348,6 +454,14 @@ export function FilesTab({
               {uploadProgress !== null && (
                 <div style={{ padding: "12px 16px" }}>
                   <ProgressBar value={uploadProgress} />
+                </div>
+              )}
+              {bulkProgress !== null && (
+                <div style={{ padding: "12px 16px" }}>
+                  <div className="text-xs text-muted" style={{ marginBottom: 4 }}>
+                    {bulkProgress.label} ({bulkProgress.done + 1}/{bulkProgress.total})
+                  </div>
+                  <ProgressBar value={bulkProgress.done / bulkProgress.total} />
                 </div>
               )}
               {project.attachments.length === 0 ? (
@@ -508,6 +622,15 @@ export function FilesTab({
                       ★ {t("plan.premium")}
                     </span>
                   )}
+                  {!isIOS && masters.length > 0 && (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled={bulkProgress !== null}
+                      onClick={() => void downloadAllMasters()}
+                    >
+                      <IconDownload /> {t("downloadAll.action")}
+                    </button>
+                  )}
                   <button
                     className="btn btn-primary btn-sm"
                     disabled={masterUploading}
@@ -518,6 +641,14 @@ export function FilesTab({
                   </button>
                 </div>
               </div>
+              {bulkProgress !== null && (
+                <div style={{ padding: "12px 16px" }}>
+                  <div className="text-xs text-muted" style={{ marginBottom: 4 }}>
+                    {bulkProgress.label} ({bulkProgress.done + 1}/{bulkProgress.total})
+                  </div>
+                  <ProgressBar value={bulkProgress.done / bulkProgress.total} />
+                </div>
+              )}
               {masters.length === 0 ? (
                 <div className="empty-state">
                   <IconMusic />

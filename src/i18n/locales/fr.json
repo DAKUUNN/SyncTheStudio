@@ -355,5 +355,8 @@
   "projectDetail.deleteTimeTitle": "Supprimer l’entree de temps?",
   "projectDetail.deleteTimeMessage": "Supprimer cette entree de temps?",
   "projectDetail.timeDeleted": "Entree de temps supprimee",
-  "projectDetail.timeDeleteFailed": "Impossible de supprimer l’entree de temps: {error}"
+  "projectDetail.timeDeleteFailed": "Impossible de supprimer l’entree de temps: {error}",
+  "downloadAll.action": "Tout télécharger",
+  "downloadAll.pickFolder": "Choisir le dossier de destination",
+  "downloadAll.done": "{count} sur {total} fichiers téléchargés"
 }

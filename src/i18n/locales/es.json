@@ -355,5 +355,8 @@
   "projectDetail.deleteTimeTitle": "Eliminar registro de tiempo?",
   "projectDetail.deleteTimeMessage": "Eliminar este registro de tiempo?",
   "projectDetail.timeDeleted": "Registro de tiempo eliminado",
-  "projectDetail.timeDeleteFailed": "No se pudo eliminar el registro de tiempo: {error}"
+  "projectDetail.timeDeleteFailed": "No se pudo eliminar el registro de tiempo: {error}",
+  "downloadAll.action": "Descargar todo",
+  "downloadAll.pickFolder": "Elegir carpeta de destino",
+  "downloadAll.done": "{count} de {total} archivos descargados"
 }

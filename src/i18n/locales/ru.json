@@ -355,5 +355,8 @@
   "projectDetail.deleteTimeTitle": "Удалить запись времени?",
   "projectDetail.deleteTimeMessage": "Удалить эту запись времени?",
   "projectDetail.timeDeleted": "Запись времени удалена",
-  "projectDetail.timeDeleteFailed": "Не удалось удалить запись времени: {error}"
+  "projectDetail.timeDeleteFailed": "Не удалось удалить запись времени: {error}",
+  "downloadAll.action": "Скачать все",
+  "downloadAll.pickFolder": "Выберите папку назначения",
+  "downloadAll.done": "Скачано файлов: {count} из {total}"
 }

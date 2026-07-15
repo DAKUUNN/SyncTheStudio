@@ -355,5 +355,8 @@
   "projectDetail.deleteTimeTitle": "Sure kaydi silinsin mi?",
   "projectDetail.deleteTimeMessage": "Bu sure kaydi silinsin mi?",
   "projectDetail.timeDeleted": "Sure kaydi silindi",
-  "projectDetail.timeDeleteFailed": "Sure kaydi silinemedi: {error}"
+  "projectDetail.timeDeleteFailed": "Sure kaydi silinemedi: {error}",
+  "downloadAll.action": "Tümünü indir",
+  "downloadAll.pickFolder": "Hedef klasörü seçin",
+  "downloadAll.done": "{count}/{total} dosya indirildi"
 }
