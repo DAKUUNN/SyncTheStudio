@@ -149,6 +149,11 @@ async function syncAttachmentIntoProjectCopies(
       arrayUnion(attachment.url),
       new FieldPath("attachmentNames", attachment.url),
       attachment.fileName,
+      // FieldPath keeps the URL as ONE segment (a dotted string path
+      // would split on every dot in the URL)
+      ...(attachment.iv
+        ? [new FieldPath("attachmentMeta", attachment.url), { iv: attachment.iv }]
+        : []),
       "updatedAt",
       serverTimestamp()
     );
@@ -189,6 +194,9 @@ export async function uploadFilesViaPublicLink(params: {
   projectId: string;
   ownerId: string;
   files: { bytes: Uint8Array; name: string }[];
+  /** Project file key from the link's URL fragment — uploads are
+   *  encrypted in the customer's browser when present. */
+  encryptKey?: string | null;
   onProgress?: (fileIndex: number, progress: number) => void;
 }): Promise<AttachmentUploadResult[]> {
   const normalizedOwnerId = params.ownerId.trim();
@@ -205,7 +213,8 @@ export async function uploadFilesViaPublicLink(params: {
       fileBytes: file.bytes,
       fileName: file.name,
       projectId: params.projectId,
-        onProgress: (progress) => params.onProgress?.(index, progress),
+      encryptKey: params.encryptKey,
+      onProgress: (progress) => params.onProgress?.(index, progress),
     });
     await syncAttachmentIntoProjectCopies(params.projectId, normalizedOwnerId, result);
     uploaded.push(result);

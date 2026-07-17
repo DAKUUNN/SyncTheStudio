@@ -381,5 +381,18 @@
   "import.confirmTitle": "¿Importar copia de seguridad?",
   "import.confirmMessage": "Se crearán {projects} proyectos y {customers} clientes de la copia del {date}.",
   "import.confirm": "Importar",
-  "import.done": "{projects} proyectos y {customers} clientes importados"
+  "import.done": "{projects} proyectos y {customers} clientes importados",
+  "e2e.keyLocked": "Clave de archivos bloqueada. Inicia sesión de nuevo o introduce tu código de recuperación (Ajustes).",
+  "recovery.title": "Tu código de recuperación",
+  "recovery.description": "Tus archivos ahora están cifrados de extremo a extremo — ni siquiera SyncTheStudio puede abrirlos. Este código es la única forma de recuperar el acceso tras restablecer la contraseña. Guárdalo en un lugar seguro.",
+  "recovery.copy": "Copiar código",
+  "recovery.warning": "Sin este código, tus archivos cifrados se pierden irremediablemente tras un restablecimiento de contraseña. No se mostrará nunca más.",
+  "recovery.confirmSaved": "He guardado el código de recuperación de forma segura",
+  "recovery.done": "Listo",
+  "recovery.unlockTitle": "Desbloquear archivos",
+  "recovery.unlockDescription": "Tu contraseña fue restablecida, por lo que tus archivos cifrados están bloqueados. Introduce tu código de recuperación para desbloquearlos.",
+  "recovery.codeLabel": "Código de recuperación",
+  "recovery.unlock": "Desbloquear",
+  "recovery.unlockLater": "Más tarde",
+  "recovery.wrongCode": "El código no es válido. Comprueba la entrada."
 }

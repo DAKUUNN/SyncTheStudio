@@ -381,5 +381,18 @@
   "import.confirmTitle": "Importer la sauvegarde ?",
   "import.confirmMessage": "{projects} projets et {customers} clients de la sauvegarde du {date} seront créés.",
   "import.confirm": "Importer",
-  "import.done": "{projects} projets et {customers} clients importés"
+  "import.done": "{projects} projets et {customers} clients importés",
+  "e2e.keyLocked": "Clé de fichiers verrouillée. Reconnectez-vous ou saisissez votre code de récupération (Paramètres).",
+  "recovery.title": "Votre code de récupération",
+  "recovery.description": "Vos fichiers sont désormais chiffrés de bout en bout — même SyncTheStudio ne peut pas les ouvrir. Ce code est le seul moyen de retrouver l'accès après une réinitialisation du mot de passe. Conservez-le en lieu sûr.",
+  "recovery.copy": "Copier le code",
+  "recovery.warning": "Sans ce code, vos fichiers chiffrés sont irrémédiablement perdus après une réinitialisation du mot de passe. Il ne sera plus jamais affiché.",
+  "recovery.confirmSaved": "J'ai enregistré le code de récupération en lieu sûr",
+  "recovery.done": "Terminé",
+  "recovery.unlockTitle": "Déverrouiller les fichiers",
+  "recovery.unlockDescription": "Votre mot de passe a été réinitialisé, vos fichiers chiffrés sont donc verrouillés. Saisissez votre code de récupération pour les déverrouiller.",
+  "recovery.codeLabel": "Code de récupération",
+  "recovery.unlock": "Déverrouiller",
+  "recovery.unlockLater": "Plus tard",
+  "recovery.wrongCode": "Ce code n'est pas valide. Vérifiez votre saisie."
 }

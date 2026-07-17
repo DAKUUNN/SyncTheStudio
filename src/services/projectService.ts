@@ -420,33 +420,41 @@ export async function addAttachment(
   userId: string,
   projectId: string,
   attachmentUrl: string,
-  fileName?: string | null
+  fileName?: string | null,
+  /** IV of a zero-knowledge-encrypted attachment; omitted for legacy plaintext uploads. */
+  iv?: string | null
 ): Promise<void> {
   const normalizedFileName = fileName?.trim();
   const sharedDocRef = doc(sharedProjectsCollection(), projectId);
   const sharedDoc = await getDoc(sharedDocRef);
 
-  if (sharedDoc.exists()) {
-    const data = sharedDoc.data() as Record<string, unknown>;
+  // URLs contain dots, so the meta map is read-modify-written as a whole
+  // (dotted string field paths would split on every dot).
+  const buildUpdate = (data: Record<string, unknown>) => {
     const attachments = parseStringList(data.attachments);
     const attachmentNames = parseStringMap(data.attachmentNames);
+    const attachmentMeta =
+      (data.attachmentMeta as Record<string, { iv: string }> | undefined) ?? {};
     if (!attachments.includes(attachmentUrl)) attachments.push(attachmentUrl);
     if (normalizedFileName) attachmentNames[attachmentUrl] = normalizedFileName;
-
-    await updateDoc(sharedDocRef, {
+    if (iv) attachmentMeta[attachmentUrl] = { iv };
+    const update: Record<string, unknown> = {
       attachments,
       attachmentNames,
       updatedAt: Timestamp.fromDate(new Date()),
-    });
+    };
+    if (iv) update.attachmentMeta = attachmentMeta;
+    return update;
+  };
+
+  if (sharedDoc.exists()) {
+    const data = sharedDoc.data() as Record<string, unknown>;
+    await updateDoc(sharedDocRef, buildUpdate(data));
 
     const ownerId = String(data.ownerId ?? "").trim();
     if (ownerId) {
       try {
-        await updateDoc(doc(projectsCollection(ownerId), projectId), {
-          attachments,
-          attachmentNames,
-          updatedAt: Timestamp.fromDate(new Date()),
-        });
+        await updateDoc(doc(projectsCollection(ownerId), projectId), buildUpdate(data));
       } catch {
         // ignore
       }
@@ -455,16 +463,7 @@ export async function addAttachment(
     const ownDocRef = doc(projectsCollection(userId), projectId);
     const ownDoc = await getDoc(ownDocRef);
     if (!ownDoc.exists()) return;
-    const data = ownDoc.data() as Record<string, unknown>;
-    const attachments = parseStringList(data.attachments);
-    const attachmentNames = parseStringMap(data.attachmentNames);
-    if (!attachments.includes(attachmentUrl)) attachments.push(attachmentUrl);
-    if (normalizedFileName) attachmentNames[attachmentUrl] = normalizedFileName;
-    await updateDoc(ownDocRef, {
-      attachments,
-      attachmentNames,
-      updatedAt: Timestamp.fromDate(new Date()),
-    });
+    await updateDoc(ownDocRef, buildUpdate(ownDoc.data() as Record<string, unknown>));
   }
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/i18n";
 import { decryptBytes } from "@/lib/crypto";
+import { readKeyFragment, resolveMasterFileKey } from "@/services/fileKeyService";
 import { getPublicLinkToken } from "@/lib/publicLinkUrl";
 import type { MasterVersionModel } from "@/models/types";
 import {
@@ -53,9 +54,16 @@ async function decryptMasterBytes(master: MasterVersionModel): Promise<Uint8Arra
   const response = await fetch(master.fileUrl);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const encryptedBytes = new Uint8Array(await response.arrayBuffer());
-  return master.encrypted
-    ? await decryptBytes(encryptedBytes, master.iv, master.fileKey)
-    : encryptedBytes;
+  if (!master.encrypted) return encryptedBytes;
+  // Zero-knowledge masters carry their key wrapped; the project file key
+  // travels in the link's URL fragment and never reaches any server.
+  const masterKey = await resolveMasterFileKey(master, readKeyFragment());
+  if (!masterKey) {
+    throw new Error(
+      "Dieser Link enthält keinen gültigen Entschlüsselungs-Schlüssel. Bitte den vollständigen Link anfordern."
+    );
+  }
+  return decryptBytes(encryptedBytes, master.iv, masterKey);
 }
 
 function bytesToBlob(bytes: Uint8Array, mimeType: string): Blob {

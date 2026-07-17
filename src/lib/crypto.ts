@@ -155,3 +155,146 @@ export async function sha256Hex(input: string): Promise<string> {
 export async function hashSharePassword(password: string, salt: string): Promise<string> {
   return sha256Hex(`${salt}:${password}`);
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Zero-knowledge key hierarchy primitives (see keyService.ts).
+// The server only ever stores WRAPPED keys — every plaintext key
+// below exists in client memory only.
+
+export const PBKDF2_ITERATIONS = 600_000;
+
+/** Derives a 32-byte KEK from a password or recovery code via
+ *  PBKDF2-SHA256. Same secret + salt always yields the same KEK. */
+export async function deriveKekBase64(
+  secret: string,
+  saltBase64: string,
+  iterations: number = PBKDF2_ITERATIONS
+): Promise<string> {
+  const baseKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret) as BufferSource,
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      hash: "SHA-256",
+      salt: base64ToBytes(saltBase64) as BufferSource,
+      iterations,
+    },
+    baseKey,
+    KEY_LENGTH_BYTES * 8
+  );
+  return bytesToBase64(new Uint8Array(bits));
+}
+
+/** Wraps one AES key with another (KEK) — same envelope as encryptText. */
+export function wrapKeyBase64(keyBase64: string, kekBase64: string): Promise<string> {
+  return encryptText(keyBase64, kekBase64);
+}
+
+/** Strict unwrap: throws when the KEK is wrong (unlike decryptText,
+ *  which silently returns its input on failure). */
+export async function unwrapKeyBase64(
+  wrapped: string,
+  kekBase64: string
+): Promise<string> {
+  const envelope = JSON.parse(wrapped) as { iv?: string; ct?: string };
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: base64ToBytes(envelope.iv ?? "") as BufferSource },
+    await importAesKey(kekBase64),
+    base64ToBytes(envelope.ct ?? "") as BufferSource
+  );
+  const keyBase64 = new TextDecoder().decode(plain);
+  if (base64ToBytes(keyBase64).length !== KEY_LENGTH_BYTES) {
+    throw new Error("unwrapped value is not a valid key");
+  }
+  return keyBase64;
+}
+
+export interface RsaKeyPairBase64 {
+  publicKeySpki: string;
+  privateKeyPkcs8: string;
+}
+
+const RSA_PARAMS: RsaHashedKeyGenParams = {
+  name: "RSA-OAEP",
+  modulusLength: 2048,
+  publicExponent: new Uint8Array([1, 0, 1]),
+  hash: "SHA-256",
+};
+
+export async function generateRsaKeyPair(): Promise<RsaKeyPairBase64> {
+  const pair = await crypto.subtle.generateKey(RSA_PARAMS, true, ["encrypt", "decrypt"]);
+  const publicKey = await crypto.subtle.exportKey("spki", pair.publicKey);
+  const privateKey = await crypto.subtle.exportKey("pkcs8", pair.privateKey);
+  return {
+    publicKeySpki: bytesToBase64(new Uint8Array(publicKey)),
+    privateKeyPkcs8: bytesToBase64(new Uint8Array(privateKey)),
+  };
+}
+
+/** Wraps an AES key for another user given their public key. */
+export async function rsaWrapKey(
+  keyBase64: string,
+  publicKeySpkiBase64: string
+): Promise<string> {
+  const publicKey = await crypto.subtle.importKey(
+    "spki",
+    base64ToBytes(publicKeySpkiBase64) as BufferSource,
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    false,
+    ["encrypt"]
+  );
+  const cipher = await crypto.subtle.encrypt(
+    { name: "RSA-OAEP" },
+    publicKey,
+    base64ToBytes(keyBase64) as BufferSource
+  );
+  return bytesToBase64(new Uint8Array(cipher));
+}
+
+export async function rsaUnwrapKey(
+  wrappedBase64: string,
+  privateKeyPkcs8Base64: string
+): Promise<string> {
+  const privateKey = await crypto.subtle.importKey(
+    "pkcs8",
+    base64ToBytes(privateKeyPkcs8Base64) as BufferSource,
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    false,
+    ["decrypt"]
+  );
+  const plain = await crypto.subtle.decrypt(
+    { name: "RSA-OAEP" },
+    privateKey,
+    base64ToBytes(wrappedBase64) as BufferSource
+  );
+  return bytesToBase64(new Uint8Array(plain));
+}
+
+/** Human-friendly recovery code: 5 groups of 5 chars from an alphabet
+ *  without lookalikes (no 0/O/1/I/L), e.g. "K7X2M-9PQRT-…" — ~124 bits. */
+const RECOVERY_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+
+export function generateRecoveryCode(): string {
+  const chars = new Uint8Array(25);
+  crypto.getRandomValues(chars);
+  const groups: string[] = [];
+  for (let g = 0; g < 5; g++) {
+    let group = "";
+    for (let i = 0; i < 5; i++) {
+      group += RECOVERY_ALPHABET[chars[g * 5 + i] % RECOVERY_ALPHABET.length];
+    }
+    groups.push(group);
+  }
+  return groups.join("-");
+}
+
+/** Normalizes user input of a recovery code (case, separators). */
+export function normalizeRecoveryCode(input: string): string {
+  const cleaned = input.toUpperCase().replace(/[^0-9A-Z]/g, "");
+  return cleaned.match(/.{1,5}/g)?.join("-") ?? cleaned;
+}

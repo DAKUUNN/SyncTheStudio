@@ -200,6 +200,9 @@ export interface ProjectModel {
   workspaceLink: string | null;
   attachments: string[];
   attachmentNames: Record<string, string>;
+  /** url → { iv } for zero-knowledge-encrypted attachments; files
+   *  without an entry are legacy plaintext uploads. */
+  attachmentMeta: Record<string, { iv: string }>;
   sharedWith: string[];
   memberRoles: Record<string, string>;
   /** uid -> "viewer" | "editor". Missing entry defaults to "editor" (the
@@ -242,6 +245,11 @@ export function projectFromMap(data: DocData): ProjectModel {
     workspaceLink: (data.workspaceLink as string | undefined) ?? null,
     attachments: parseStringList(data.attachments),
     attachmentNames: parseStringMap(data.attachmentNames),
+    attachmentMeta: Object.fromEntries(
+      Object.entries(
+        (data.attachmentMeta as Record<string, { iv?: unknown }> | undefined) ?? {}
+      ).map(([url, meta]) => [url, { iv: String(meta?.iv ?? "") }])
+    ),
     sharedWith: parseStringList(data.sharedWith),
     memberRoles: parseStringMap(data.memberRoles),
     memberPermissions: parseStringMap(data.memberPermissions),
@@ -640,7 +648,10 @@ export interface MasterVersionModel {
   mimeType: string;
   fileSize: number;
   iv: string;
+  /** Legacy scheme: per-file key stored in plaintext (pre zero-knowledge). */
   fileKey: string;
+  /** Zero-knowledge scheme: per-file key wrapped with the project file key. */
+  fileKeyWrapped: string;
   encrypted: boolean;
   createdBy: string;
   createdAt: Date;
@@ -659,6 +670,7 @@ export function masterVersionFromDocument(doc: DocumentSnapshot): MasterVersionM
     fileSize: Number(data.fileSize ?? 0),
     iv: String(data.iv ?? ""),
     fileKey: String(data.fileKey ?? ""),
+    fileKeyWrapped: String(data.fileKeyWrapped ?? ""),
     encrypted: Boolean(data.encrypted ?? true),
     createdBy: String(data.createdBy ?? ""),
     createdAt: parseDate(data.createdAt) ?? new Date(),

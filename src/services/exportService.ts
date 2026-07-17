@@ -8,6 +8,7 @@ import { getTimeEntries } from "./timeTrackingService";
 import { getMessagesOnce } from "./exportChatHelper";
 import { getMastersOnce } from "./masterService";
 import { decryptBytes } from "@/lib/crypto";
+import { getOrCreateProjectFileKey, resolveMasterFileKey } from "./fileKeyService";
 import type { ProjectModel } from "@/models/types";
 
 /** Port of export_service.dart + the folder/CSV parts of
@@ -338,6 +339,8 @@ export async function exportProjectAsFolder(params: {
     await writeTextFile(`${folder}/05 Verlauf.txt`, lines.join("\n") || "Kein Verlauf");
   }
 
+  const projectFileKey = await getOrCreateProjectFileKey(p, params.userId);
+
   if (params.includeAttachments) {
     const filesFolder = `${folder}/06 Dateien`;
     await mkdir(filesFolder, { recursive: true });
@@ -347,7 +350,14 @@ export async function exportProjectAsFolder(params: {
       const originalName = p.attachmentNames[url] ?? `datei_${index}`;
       params.onProgress?.(`Datei ${index}/${p.attachments.length}: ${originalName}`);
       try {
-        await downloadUrlToFile(url, `${filesFolder}/${sanitizeFileName(originalName)}`);
+        const meta = p.attachmentMeta[url];
+        if (meta && projectFileKey) {
+          const plain = await decryptBytes(await fetchBytes(url), meta.iv, projectFileKey);
+          await writeFile(`${filesFolder}/${sanitizeFileName(originalName)}`, plain);
+        } else if (!meta) {
+          await downloadUrlToFile(url, `${filesFolder}/${sanitizeFileName(originalName)}`);
+        }
+        // encrypted attachment without key: skip — ciphertext on disk is useless
       } catch {
         // best-effort — skip files that fail to download, continue export
       }
@@ -363,9 +373,11 @@ export async function exportProjectAsFolder(params: {
       index++;
       params.onProgress?.(`Master ${index}/${masters.length}: ${master.versionName}`);
       try {
+        const masterKey = await resolveMasterFileKey(master, projectFileKey);
+        if (master.encrypted && !masterKey) continue; // locked — skip ciphertext
         const encryptedBytes = await fetchBytes(master.fileUrl);
         const plainBytes = master.encrypted
-          ? await decryptBytes(encryptedBytes, master.iv, master.fileKey)
+          ? await decryptBytes(encryptedBytes, master.iv, masterKey!)
           : encryptedBytes;
         const fileName = sanitizeFileName(
           master.originalFileName || `${master.versionName}.bin`

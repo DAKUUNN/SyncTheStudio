@@ -6,6 +6,7 @@ import {
   deleteObject,
 } from "firebase/storage";
 import { storage } from "@/firebase";
+import { encryptBytes } from "@/lib/crypto";
 
 /** Port of storage_service.dart */
 
@@ -91,12 +92,17 @@ export interface AttachmentUploadResult {
   storagePath: string;
   contentType: string;
   fileSize: number;
+  /** Set when the bytes were zero-knowledge-encrypted before upload. */
+  iv: string | null;
 }
 
 export async function uploadAttachment(params: {
   fileBytes: Uint8Array;
   fileName: string;
   projectId: string;
+  /** Project file key — when present the file is AES-GCM-encrypted
+   *  client-side and the storage object holds only ciphertext. */
+  encryptKey?: string | null;
   onProgress?: (progress: number) => void;
 }): Promise<AttachmentUploadResult> {
   const fileNameOriginal = params.fileName.trim() || "attachment.bin";
@@ -105,12 +111,21 @@ export async function uploadAttachment(params: {
     : "";
   const safeOriginalName = sanitizeStorageFileName(fileNameOriginal);
   const storagePath = `attachments/${params.projectId}/${Date.now()}__${safeOriginalName}`;
-  const contentType = getContentType(extension);
+
+  let payload = params.fileBytes;
+  let iv: string | null = null;
+  let contentType = getContentType(extension);
+  if (params.encryptKey) {
+    const encrypted = await encryptBytes(params.fileBytes, params.encryptKey);
+    payload = encrypted.bytes;
+    iv = encrypted.iv;
+    contentType = "application/octet-stream";
+  }
 
   const ref = storageRef(storage, storagePath);
-  const task = uploadBytesResumable(ref, params.fileBytes as unknown as ArrayBuffer, {
+  const task = uploadBytesResumable(ref, payload as unknown as ArrayBuffer, {
     contentType,
-    cacheControl: "public,max-age=86400",
+    cacheControl: params.encryptKey ? "private,max-age=0,no-transform" : "public,max-age=86400",
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -131,6 +146,7 @@ export async function uploadAttachment(params: {
     storagePath,
     contentType,
     fileSize: params.fileBytes.length,
+    iv,
   };
 }
 

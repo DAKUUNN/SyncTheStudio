@@ -34,6 +34,12 @@ import {
   disablePublicUploadLink,
 } from "@/services/masterService";
 import { hasPremiumStorage, premiumStorageMessage } from "@/services/planService";
+import {
+  getOrCreateProjectFileKey,
+  backfillMemberFileKeys,
+  resolveMasterFileKey,
+  appendKeyFragment,
+} from "@/services/fileKeyService";
 import { decryptBytes } from "@/lib/crypto";
 import { copyText } from "@/lib/clipboard";
 import { useIsIOS } from "@/lib/platform";
@@ -114,31 +120,86 @@ export function FilesTab({
 
   const isViewer = currentUser ? isProjectViewer(project, currentUser.id) : false;
 
+  // ── Zero-knowledge project file key ──────────────────────────
+  // null → files are handled with the legacy unencrypted behavior
+  // (locked keys, member without backfilled entry, old accounts).
+  const [projectFileKey, setProjectFileKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    let cancelled = false;
+    void getOrCreateProjectFileKey(project, currentUser.id).then((key) => {
+      if (!cancelled) setProjectFileKey(key);
+    });
+    if (project.ownerId === currentUser.id) {
+      void backfillMemberFileKeys(project, currentUser.id);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [project.id, currentUser?.id]);
+
   // ── Inline audio preview for attachments ─────────────────────
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playingUrl, setPlayingUrl] = useState<string | null>(null);
 
-  const togglePreview = (url: string) => {
+  const blobUrlRef = useRef<string | null>(null);
+
+  const releaseBlobUrl = () => {
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+  };
+
+  const togglePreview = async (url: string) => {
     if (playingUrl === url) {
       audioRef.current?.pause();
       audioRef.current = null;
+      releaseBlobUrl();
       setPlayingUrl(null);
       return;
     }
     audioRef.current?.pause();
-    const audio = new Audio(url);
-    audio.onended = () => setPlayingUrl(null);
-    audio.onerror = () => {
-      setPlayingUrl(null);
-      showToast(t("attachments.previewFailed"), "error");
-    };
-    audioRef.current = audio;
-    setPlayingUrl(url);
-    void audio.play();
+    releaseBlobUrl();
+    try {
+      // encrypted attachments can't stream directly — decrypt to a blob URL
+      let source = url;
+      const meta = project.attachmentMeta[url];
+      if (meta) {
+        if (!projectFileKey) throw new Error(t("e2e.keyLocked"));
+        const plain = await decryptBytes(await fetchBytes(url), meta.iv, projectFileKey);
+        const buffer = plain.buffer.slice(
+          plain.byteOffset,
+          plain.byteOffset + plain.byteLength
+        ) as ArrayBuffer;
+        source = URL.createObjectURL(new Blob([buffer]));
+        blobUrlRef.current = source;
+      }
+      const audio = new Audio(source);
+      audio.onended = () => {
+        releaseBlobUrl();
+        setPlayingUrl(null);
+      };
+      audio.onerror = () => {
+        releaseBlobUrl();
+        setPlayingUrl(null);
+        showToast(t("attachments.previewFailed"), "error");
+      };
+      audioRef.current = audio;
+      setPlayingUrl(url);
+      void audio.play();
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    }
   };
 
   useEffect(() => {
-    return () => audioRef.current?.pause();
+    return () => {
+      audioRef.current?.pause();
+      releaseBlobUrl();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -171,9 +232,10 @@ export function FilesTab({
           fileBytes: file.bytes,
           fileName: file.name,
           projectId: project.id,
+          encryptKey: projectFileKey,
           onProgress: setUploadProgress,
         });
-        await addAttachment(currentUser.id, project.id, result.url, result.fileName);
+        await addAttachment(currentUser.id, project.id, result.url, result.fileName, result.iv);
         await addHistoryEntry(
           project.id,
           currentUser.id,
@@ -210,6 +272,28 @@ export function FilesTab({
       files.push({ bytes: new Uint8Array(buffer), name: file.name });
     }
     if (files.length > 0) await uploadFiles(files);
+  };
+
+  /** Legacy attachments open in the browser; encrypted ones have to be
+   *  fetched, decrypted locally and saved via dialog. */
+  const onOpenAttachment = async (url: string) => {
+    const meta = project.attachmentMeta[url];
+    if (!meta) {
+      await openUrl(url);
+      return;
+    }
+    try {
+      if (!projectFileKey) throw new Error(t("e2e.keyLocked"));
+      const plain = await decryptBytes(await fetchBytes(url), meta.iv, projectFileKey);
+      const target = await saveDialog({
+        defaultPath: project.attachmentNames[url] ?? url.split("/").pop() ?? "datei",
+      });
+      if (!target) return;
+      await writeFile(target, plain);
+      showToast(t("masters.downloaded"), "success");
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    }
   };
 
   const onRemoveAttachment = async (url: string) => {
@@ -273,6 +357,7 @@ export function FilesTab({
         fileBytes: bytes,
         fileName,
         versionName,
+        projectFileKey,
       });
       showToast(t("masters.uploaded"), "success");
     } catch (e) {
@@ -285,8 +370,10 @@ export function FilesTab({
   const onDownloadMaster = async (master: MasterVersionModel) => {
     try {
       const encrypted = await fetchBytes(master.fileUrl);
+      const masterKey = await resolveMasterFileKey(master, projectFileKey);
+      if (master.encrypted && !masterKey) throw new Error(t("e2e.keyLocked"));
       const plain = master.encrypted
-        ? await decryptBytes(encrypted, master.iv, master.fileKey)
+        ? await decryptBytes(encrypted, master.iv, masterKey!)
         : encrypted;
       const target = await saveDialog({ defaultPath: master.originalFileName });
       if (!target) return;
@@ -346,7 +433,13 @@ export function FilesTab({
         name: sanitizeFileName(
           project.attachmentNames[url] ?? url.split("/").pop() ?? `datei_${i + 1}`
         ),
-        getBytes: () => fetchBytes(url),
+        getBytes: async () => {
+          const bytes = await fetchBytes(url);
+          const meta = project.attachmentMeta[url];
+          if (!meta) return bytes;
+          if (!projectFileKey) throw new Error(t("e2e.keyLocked"));
+          return decryptBytes(bytes, meta.iv, projectFileKey);
+        },
       }))
     );
 
@@ -356,8 +449,10 @@ export function FilesTab({
         name: sanitizeFileName(master.originalFileName || `${master.versionName}.bin`),
         getBytes: async () => {
           const encrypted = await fetchBytes(master.fileUrl);
+          const masterKey = await resolveMasterFileKey(master, projectFileKey);
+          if (master.encrypted && !masterKey) throw new Error(t("e2e.keyLocked"));
           return master.encrypted
-            ? await decryptBytes(encrypted, master.iv, master.fileKey)
+            ? await decryptBytes(encrypted, master.iv, masterKey!)
             : encrypted;
         },
       }))
@@ -509,7 +604,7 @@ export function FilesTab({
                         className="icon-btn"
                         title={t("attachments.preview")}
                         style={playingUrl === url ? { color: "var(--primary)" } : undefined}
-                        onClick={() => togglePreview(url)}
+                        onClick={() => void togglePreview(url)}
                       >
                         {playingUrl === url ? <IconPause /> : <IconPlay />}
                       </button>
@@ -517,7 +612,7 @@ export function FilesTab({
                     <button
                       className="icon-btn"
                       title={t("common.open")}
-                      onClick={() => void openUrl(url)}
+                      onClick={() => void onOpenAttachment(url)}
                     >
                       <IconDownload />
                     </button>
@@ -577,12 +672,12 @@ export function FilesTab({
                     marginBottom: 10,
                   }}
                 >
-                  {uploadLink.url}
+                  {appendKeyFragment(uploadLink.url, projectFileKey)}
                 </div>
                 <div className="row row-wrap">
                   <button
                     className="btn btn-secondary btn-sm"
-                    onClick={() => void copyToClipboard(uploadLink.url)}
+                    onClick={() => void copyToClipboard(appendKeyFragment(uploadLink.url, projectFileKey))}
                   >
                     <IconCopy /> {t("common.copyLink")}
                   </button>
@@ -834,12 +929,12 @@ export function FilesTab({
                     marginBottom: 10,
                   }}
                 >
-                  {share.url}
+                  {appendKeyFragment(share.url, projectFileKey)}
                 </div>
                 <div className="row row-wrap">
                   <button
                     className="btn btn-secondary btn-sm"
-                    onClick={() => void copyToClipboard(share.url)}
+                    onClick={() => void copyToClipboard(appendKeyFragment(share.url, projectFileKey))}
                   >
                     <IconCopy /> {t("common.copyLink")}
                   </button>

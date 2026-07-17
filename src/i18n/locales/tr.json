@@ -381,5 +381,18 @@
   "import.confirmTitle": "Yedek içe aktarılsın mı?",
   "import.confirmMessage": "{date} tarihli yedekten {projects} proje ve {customers} müşteri oluşturulacak.",
   "import.confirm": "İçe aktar",
-  "import.done": "{projects} proje ve {customers} müşteri içe aktarıldı"
+  "import.done": "{projects} proje ve {customers} müşteri içe aktarıldı",
+  "e2e.keyLocked": "Dosya anahtarı kilitli. Yeniden giriş yap veya kurtarma kodunu gir (Ayarlar).",
+  "recovery.title": "Kurtarma kodun",
+  "recovery.description": "Dosyaların artık uçtan uca şifreleniyor — SyncTheStudio bile açamaz. Bu kod, parola sıfırlamadan sonra dosyalarına yeniden erişmenin tek yoludur. Güvenli bir yerde sakla.",
+  "recovery.copy": "Kodu kopyala",
+  "recovery.warning": "Bu kod olmadan, parola sıfırlamadan sonra şifreli dosyaların geri getirilemez şekilde kaybolur. Bir daha asla gösterilmeyecek.",
+  "recovery.confirmSaved": "Kurtarma kodunu güvenle sakladım",
+  "recovery.done": "Tamam",
+  "recovery.unlockTitle": "Dosyaların kilidini aç",
+  "recovery.unlockDescription": "Parolan sıfırlandığı için şifreli dosyaların kilitli. Kilidi açmak için kurtarma kodunu gir.",
+  "recovery.codeLabel": "Kurtarma kodu",
+  "recovery.unlock": "Kilidi aç",
+  "recovery.unlockLater": "Sonra",
+  "recovery.wrongCode": "Kod geçersiz. Girişini kontrol et."
 }

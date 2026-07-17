@@ -1,5 +1,6 @@
 import { useMemo, useState, type ChangeEvent, type DragEvent } from "react";
 import { uploadFilesViaPublicLink } from "@/services/publicLinkService";
+import { readKeyFragment } from "@/services/fileKeyService";
 import { Spinner, ProgressBar } from "@/components/ui";
 import { IconFile, IconUpload } from "@/components/Icons";
 
@@ -89,6 +90,7 @@ export function UploadPanel({ projectId, ownerId }: { projectId: string; ownerId
         projectId,
         ownerId,
         files: prepared,
+        encryptKey: readKeyFragment(),
         onProgress: (fileIndex, fileProgress) => {
           const aggregate = (fileIndex + fileProgress) / prepared.length;
           setProgress(Math.round(aggregate * 100));

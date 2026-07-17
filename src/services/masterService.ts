@@ -36,6 +36,7 @@ import {
   generateIvBase64,
   hashSharePassword,
   uuid,
+  wrapKeyBase64,
 } from "@/lib/crypto";
 
 /** Port of master_service.dart + customer_upload_service.dart */
@@ -183,6 +184,9 @@ export async function uploadMasterVersion(params: {
   fileBytes: Uint8Array;
   fileName: string;
   versionName: string;
+  /** Project file key: when present the per-file key is stored wrapped
+   *  (zero-knowledge); without it the legacy plaintext-key scheme is used. */
+  projectFileKey?: string | null;
 }): Promise<void> {
   const fileKey = generateKeyBase64();
   const encrypted = await encryptBytes(params.fileBytes, fileKey);
@@ -222,7 +226,10 @@ export async function uploadMasterVersion(params: {
     mimeType: mimeTypeForExtension(extension),
     fileSize: params.fileBytes.length,
     iv: encrypted.iv,
-    fileKey,
+    fileKey: params.projectFileKey ? null : fileKey,
+    fileKeyWrapped: params.projectFileKey
+      ? await wrapKeyBase64(fileKey, params.projectFileKey)
+      : null,
     encrypted: true,
     createdBy: params.userId,
     createdAt: serverTimestamp(),

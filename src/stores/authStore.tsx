@@ -14,6 +14,13 @@ import { userHelpers, type UserModel } from "@/models/types";
 import * as authService from "@/services/authService";
 import { clearProjectKeyCache } from "@/services/keyManagementService";
 import {
+  ensureUserKeys,
+  unlockWithRecoveryCode,
+  clearUnlockedKeys,
+  rewrapPasswordCopy,
+} from "@/services/keyService";
+import { clearFileKeyCache } from "@/services/fileKeyService";
+import {
   startDeadlineWatcher,
   stopDeadlineWatcher,
 } from "@/services/deadlineNotificationService";
@@ -61,6 +68,15 @@ interface AuthContextValue {
   refreshUser: () => Promise<void>;
   clearError: () => void;
   updatePresence: (isOnline: boolean) => Promise<void>;
+  /** Recovery code to show exactly once after key creation (zero-knowledge
+   *  file encryption) — null when nothing to show. */
+  pendingRecoveryCode: string | null;
+  confirmRecoveryCodeSaved: () => void;
+  /** True when the password no longer unlocks the file keys (mail reset)
+   *  and the user must enter their recovery code. */
+  needsRecoveryUnlock: boolean;
+  submitRecoveryUnlock: (code: string) => Promise<boolean>;
+  dismissRecoveryUnlock: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -73,6 +89,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginAttempts = useRef<number[]>([]);
   const lockoutEndTime = useRef<number | null>(null);
+
+  const [pendingRecoveryCode, setPendingRecoveryCode] = useState<string | null>(null);
+  const [needsRecoveryUnlock, setNeedsRecoveryUnlock] = useState(false);
+  // The freshly typed login password, kept only until the recovery-code
+  // dialog rewraps the keys with it (never persisted anywhere).
+  const pendingUnlockPassword = useRef<string | null>(null);
+
+  /** Best-effort — key problems must never block login itself. */
+  const setupFileKeys = useCallback(async (userId: string, password: string | null) => {
+    try {
+      const result = await ensureUserKeys(userId, password);
+      if (result.state === "unlocked") {
+        if (result.recoveryCode) setPendingRecoveryCode(result.recoveryCode);
+      } else {
+        pendingUnlockPassword.current = password;
+        setNeedsRecoveryUnlock(true);
+      }
+    } catch (e) {
+      console.error("file key setup failed:", e);
+    }
+  }, []);
 
   // Initial session restore, mirrors AuthProvider.initialize()
   useEffect(() => {
@@ -166,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginAttempts.current = [];
         void authService.updateUserPresence(user.id, true);
         startDeadlineWatcher(user.id);
+        await setupFileKeys(user.id, params.password);
         setIsLoading(false);
         return true;
       } catch (e) {
@@ -174,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
     },
-    [isLockedOut]
+    [isLockedOut, setupFileKeys]
   );
 
   const register = useCallback(
@@ -189,6 +227,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (user) {
             void authService.updateUserPresence(user.id, true);
             startDeadlineWatcher(user.id);
+            await setupFileKeys(user.id, params.password);
           }
         }
         setIsLoading(false);
@@ -199,7 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
     },
-    []
+    [setupFileKeys]
   );
 
   const loginWithApple = useCallback(async () => {
@@ -220,6 +259,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCurrentUser(user);
       void authService.updateUserPresence(user.id, true);
       startDeadlineWatcher(user.id);
+      // Apple sign-in has no password — keys are wrapped with the
+      // recovery code only (plus this device's local copy).
+      await setupFileKeys(user.id, null);
       setIsLoading(false);
       return true;
     } catch (e) {
@@ -230,7 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       return false;
     }
-  }, []);
+  }, [setupFileKeys]);
 
   const logout = useCallback(async () => {
     setIsLoading(true);
@@ -240,9 +282,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       stopDeadlineWatcher();
       clearProjectKeyCache();
+      clearFileKeyCache();
+      if (currentUser) clearUnlockedKeys(currentUser.id);
       await authService.logoutUser();
     } finally {
       setCurrentUser(null);
+      setPendingRecoveryCode(null);
+      setNeedsRecoveryUnlock(false);
+      pendingUnlockPassword.current = null;
       setIsLoading(false);
     }
   }, [currentUser]);
@@ -263,14 +310,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       try {
         await authService.changeUserPassword(params);
+        // keep the zero-knowledge file keys unlockable with the new password
+        if (currentUser) {
+          await rewrapPasswordCopy(currentUser.id, params.newPassword).catch((e) =>
+            console.error("rewrap after password change failed:", e)
+          );
+        }
         return true;
       } catch (e) {
         setError((e as Error).message);
         return false;
       }
     },
-    []
+    [currentUser]
   );
+
+  const confirmRecoveryCodeSaved = useCallback(() => setPendingRecoveryCode(null), []);
+
+  const submitRecoveryUnlock = useCallback(
+    async (code: string) => {
+      if (!currentUser) return false;
+      const ok = await unlockWithRecoveryCode(
+        currentUser.id,
+        code,
+        pendingUnlockPassword.current
+      );
+      if (ok) {
+        setNeedsRecoveryUnlock(false);
+        pendingUnlockPassword.current = null;
+      }
+      return ok;
+    },
+    [currentUser]
+  );
+
+  const dismissRecoveryUnlock = useCallback(() => {
+    setNeedsRecoveryUnlock(false);
+    pendingUnlockPassword.current = null;
+  }, []);
 
   const refreshUser = useCallback(async () => {
     const user = await authService.getCurrentUser();
@@ -329,6 +406,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshUser,
       clearError,
       updatePresence,
+      pendingRecoveryCode,
+      confirmRecoveryCodeSaved,
+      needsRecoveryUnlock,
+      submitRecoveryUnlock,
+      dismissRecoveryUnlock,
     }),
     [
       currentUser,
@@ -345,6 +427,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshUser,
       clearError,
       updatePresence,
+      pendingRecoveryCode,
+      confirmRecoveryCodeSaved,
+      needsRecoveryUnlock,
+      submitRecoveryUnlock,
+      dismissRecoveryUnlock,
     ]
   );
 

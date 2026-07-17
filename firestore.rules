@@ -174,7 +174,7 @@ service cloud.firestore {
     }
 
     function isAttachmentOnlyChange() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attachments', 'attachmentNames', 'updatedAt']);
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attachments', 'attachmentNames', 'attachmentMeta', 'updatedAt']);
     }
 
     // Payload caps for the anonymous public-review write paths — bounds how
