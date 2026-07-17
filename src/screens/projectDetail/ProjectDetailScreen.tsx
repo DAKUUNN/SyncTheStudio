@@ -40,7 +40,9 @@ import {
   IconLogout,
   IconAlert,
 } from "@/components/Icons";
+import { useIsIOS } from "@/lib/platform";
 import { FilesTab } from "./FilesTab";
+import { ArchiveProjectModal } from "./ArchiveProjectModal";
 import { TeamTab } from "./TeamTab";
 import { ChatTab } from "./ChatTab";
 import { TasksTab } from "./TasksTab";
@@ -63,6 +65,8 @@ export function ProjectDetailScreen() {
   const [tab, setTab] = useState<DetailTab>("info");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const isIOS = useIsIOS();
 
   const reload = useCallback(async () => {
     if (!currentUser || !projectId) return;
@@ -192,6 +196,11 @@ export function ProjectDetailScreen() {
           >
             <IconEdit /> {t("common.edit")}
           </button>
+          {isOwner && !isIOS && (
+            <button className="btn btn-secondary" onClick={() => setArchiveOpen(true)}>
+              <IconCheckCircle /> {t("archive.action")}
+            </button>
+          )}
           {isOwner ? (
             <button className="btn btn-danger-soft btn-sm" onClick={() => setConfirmDelete(true)}>
               <IconTrash /> {t("common.delete")}
@@ -269,6 +278,13 @@ export function ProjectDetailScreen() {
           danger
           onConfirm={() => void onLeave()}
           onCancel={() => setConfirmLeave(false)}
+        />
+      )}
+      {archiveOpen && (
+        <ArchiveProjectModal
+          project={project}
+          onDone={reload}
+          onClose={() => setArchiveOpen(false)}
         />
       )}
 

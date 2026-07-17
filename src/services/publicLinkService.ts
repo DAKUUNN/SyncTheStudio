@@ -155,6 +155,18 @@ async function syncAttachmentIntoProjectCopies(
 
   await Promise.allSettled([applyUpdate(ownerRef), applyUpdate(sharedRef)]);
   await setDoc(rootRef, { updatedAt: serverTimestamp() }, { merge: true });
+
+  // Marker doc for the push notification to the owner — the Cloud
+  // Function pushOnCustomerUpload listens on this subcollection.
+  // Best-effort: a failed marker must never fail the actual upload.
+  try {
+    await setDoc(doc(collection(db, "projects", projectId, "customerUploads")), {
+      fileName: attachment.fileName,
+      createdAt: serverTimestamp(),
+    });
+  } catch {
+    // ignore
+  }
 }
 
 /**

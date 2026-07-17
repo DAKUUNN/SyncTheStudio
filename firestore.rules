@@ -353,6 +353,22 @@ service cloud.firestore {
           get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid
         );
       }
+
+      // Marker docs written by the anonymous public-upload page; the
+      // pushOnCustomerUpload Cloud Function notifies the owner on create.
+      match /customerUploads/{uploadId} {
+        allow read: if canAccessProject(projectId);
+        allow create: if signedIn() &&
+          isActiveCustomerUpload(projectId) &&
+          request.resource.data.keys().hasOnly(['fileName', 'createdAt']) &&
+          request.resource.data.fileName is string &&
+          request.resource.data.fileName.size() <= 300;
+        allow update: if false;
+        allow delete: if signedIn() && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid
+        );
+      }
     }
 
     match /app_admin_notifications/{notificationId} {

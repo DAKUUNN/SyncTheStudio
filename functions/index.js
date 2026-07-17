@@ -58,3 +58,52 @@ exports.pushOnChatMessage = onDocumentCreated(
     );
   }
 );
+
+/** Looks up the project's owner via the root metadata doc projects/{id}
+ *  (mirrored on create, holds ownerId + projectName). */
+async function getProjectOwnerAndName(projectId) {
+  const projectDoc = await db.collection("projects").doc(projectId).get();
+  if (!projectDoc.exists) return null;
+  const data = projectDoc.data();
+  return { ownerId: data.ownerId, projectName: data.projectName || "Projekt" };
+}
+
+// Customer left feedback via the public master-review link → push the
+// project owner. Feedback docs are written by the (anonymous) public
+// share page into projects/{projectId}/masterFeedback.
+exports.pushOnMasterFeedback = onDocumentCreated(
+  "projects/{projectId}/masterFeedback/{feedbackId}",
+  async (event) => {
+    const feedback = event.data?.data();
+    if (!feedback) return;
+
+    const project = await getProjectOwnerAndName(event.params.projectId);
+    if (!project?.ownerId) return;
+    // in-app reviews by the owner themselves shouldn't self-notify
+    if (feedback.authorId && feedback.authorId === project.ownerId) return;
+
+    await sendToUser(project.ownerId, {
+      title: feedback.authorName || "Kunde",
+      body: `Neues Feedback zu „${project.projectName}“`,
+    }).catch((err) => logger.error("feedback push failed", err));
+  }
+);
+
+// Customer uploaded files via the public upload link → push the project
+// owner. The public upload flow writes one marker doc per file into
+// projects/{projectId}/customerUploads (see publicLinkService.ts).
+exports.pushOnCustomerUpload = onDocumentCreated(
+  "projects/{projectId}/customerUploads/{uploadId}",
+  async (event) => {
+    const upload = event.data?.data();
+    if (!upload) return;
+
+    const project = await getProjectOwnerAndName(event.params.projectId);
+    if (!project?.ownerId) return;
+
+    await sendToUser(project.ownerId, {
+      title: project.projectName,
+      body: `Neue Kunden-Datei: ${upload.fileName || "Datei"}`,
+    }).catch((err) => logger.error("upload push failed", err));
+  }
+);

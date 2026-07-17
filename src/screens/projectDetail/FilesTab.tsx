@@ -1,4 +1,4 @@
-import { useEffect, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { open as openFileDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -49,7 +49,16 @@ import {
   IconLock,
   IconUnlock,
   IconMessage,
+  IconPlay,
+  IconPause,
 } from "@/components/Icons";
+
+const AUDIO_EXTENSIONS = ["mp3", "wav", "aiff", "aif", "flac", "m4a", "ogg"];
+
+function isAudioFile(name: string): boolean {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  return AUDIO_EXTENSIONS.includes(ext);
+}
 
 function sanitizeFileName(name: string): string {
   const sanitized = name.trim().replace(/[\\/:*?"<>|]/g, "_");
@@ -104,6 +113,33 @@ export function FilesTab({
   const [masterVersionName, setMasterVersionName] = useState("");
 
   const isViewer = currentUser ? isProjectViewer(project, currentUser.id) : false;
+
+  // ── Inline audio preview for attachments ─────────────────────
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playingUrl, setPlayingUrl] = useState<string | null>(null);
+
+  const togglePreview = (url: string) => {
+    if (playingUrl === url) {
+      audioRef.current?.pause();
+      audioRef.current = null;
+      setPlayingUrl(null);
+      return;
+    }
+    audioRef.current?.pause();
+    const audio = new Audio(url);
+    audio.onended = () => setPlayingUrl(null);
+    audio.onerror = () => {
+      setPlayingUrl(null);
+      showToast(t("attachments.previewFailed"), "error");
+    };
+    audioRef.current = audio;
+    setPlayingUrl(url);
+    void audio.play();
+  };
+
+  useEffect(() => {
+    return () => audioRef.current?.pause();
+  }, []);
 
   useEffect(() => {
     const unsubMasters = watchMasters(project.id, setMasters);
@@ -468,6 +504,16 @@ export function FilesTab({
                     <div className="grow truncate text-small" style={{ fontWeight: 500 }}>
                       {project.attachmentNames[url] ?? url.split("/").pop()}
                     </div>
+                    {isAudioFile(project.attachmentNames[url] ?? url) && (
+                      <button
+                        className="icon-btn"
+                        title={t("attachments.preview")}
+                        style={playingUrl === url ? { color: "var(--primary)" } : undefined}
+                        onClick={() => togglePreview(url)}
+                      >
+                        {playingUrl === url ? <IconPause /> : <IconPlay />}
+                      </button>
+                    )}
                     <button
                       className="icon-btn"
                       title={t("common.open")}

@@ -12,8 +12,16 @@ import {
   generateFullBackup,
   exportProjectAsFolder,
 } from "@/services/exportService";
-import { Spinner } from "@/components/ui";
-import { IconExport, IconFile, IconUsers, IconClock, IconFolder } from "@/components/Icons";
+import { pickBackupFile, importFullBackup, type BackupSummary } from "@/services/importService";
+import { Spinner, ConfirmDialog } from "@/components/ui";
+import {
+  IconExport,
+  IconFile,
+  IconUsers,
+  IconClock,
+  IconFolder,
+  IconDownload,
+} from "@/components/Icons";
 
 export function ExportScreen() {
   const { currentUser } = useAuth();
@@ -36,6 +44,8 @@ export function ExportScreen() {
   const [dawProject, setDawProject] = useState<{ path: string; isDirectory: boolean } | null>(
     null
   );
+  const [importSummary, setImportSummary] = useState<BackupSummary | null>(null);
+  const [importProgress, setImportProgress] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -44,6 +54,39 @@ export function ExportScreen() {
       if (list.length > 0) setSelectedProjectId(list[0].id);
     });
   }, [currentUser?.id]);
+
+  const onPickBackup = async () => {
+    try {
+      const summary = await pickBackupFile();
+      if (summary) setImportSummary(summary);
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    }
+  };
+
+  const onRunImport = async () => {
+    if (!importSummary || !currentUser) return;
+    const backup = importSummary.data;
+    setImportSummary(null);
+    setBusy("import");
+    try {
+      const result = await importFullBackup({
+        userId: currentUser.id,
+        username: currentUser.username,
+        backup,
+        onProgress: setImportProgress,
+      });
+      showToast(
+        t("import.done", { projects: result.projects, customers: result.customers }),
+        "success"
+      );
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally {
+      setBusy(null);
+      setImportProgress(null);
+    }
+  };
 
   const pickDawProject = async (directory: boolean) => {
     const selected = await openDialog({
@@ -272,6 +315,45 @@ export function ExportScreen() {
           </div>
         )}
       </div>
+
+      <div className="card card-pad" style={{ marginTop: 20 }}>
+        <div className="section-title">
+          <IconDownload style={{ width: 13, height: 13, verticalAlign: -2 }} />{" "}
+          {t("import.title")}
+        </div>
+        <p className="text-small text-muted" style={{ marginBottom: 12 }}>
+          {t("import.description")}
+        </p>
+        <button
+          className="btn btn-secondary btn-sm"
+          disabled={busy !== null}
+          onClick={() => void onPickBackup()}
+        >
+          {busy === "import" ? <Spinner /> : <IconDownload />}
+          {t("import.pickFile")}
+        </button>
+        {busy === "import" && importProgress && (
+          <div className="text-xs text-muted" style={{ marginTop: 10 }}>
+            {importProgress}
+          </div>
+        )}
+      </div>
+
+      {importSummary && (
+        <ConfirmDialog
+          title={t("import.confirmTitle")}
+          message={t("import.confirmMessage", {
+            projects: importSummary.projectCount,
+            customers: importSummary.customerCount,
+            date: importSummary.generatedAt
+              ? new Date(importSummary.generatedAt).toLocaleDateString()
+              : "—",
+          })}
+          confirmLabel={t("import.confirm")}
+          onConfirm={() => void onRunImport()}
+          onCancel={() => setImportSummary(null)}
+        />
+      )}
     </div>
   );
 }

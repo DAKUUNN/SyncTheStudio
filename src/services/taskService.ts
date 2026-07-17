@@ -263,6 +263,49 @@ export async function createTasksFromRevisionPoints(
   }
 }
 
+// ── Bulk import from a backup file (used by the import flow) ────
+
+export async function importTasks(
+  projectId: string,
+  tasks: {
+    title: string;
+    description?: string | null;
+    isCompleted?: boolean;
+    dueDate?: Date | null;
+    subtasks?: { title: string; isCompleted?: boolean }[];
+  }[],
+  createdBy: string
+): Promise<void> {
+  const base = Date.now();
+  let index = 0;
+  for (const task of tasks) {
+    const trimmed = task.title.trim();
+    if (!trimmed) continue;
+    const subtasks: Record<string, unknown> = {};
+    (task.subtasks ?? []).forEach((sub, i) => {
+      if (!sub.title.trim()) return;
+      subtasks[`${base}_${index}_${i}`] = {
+        title: sub.title.trim(),
+        isCompleted: Boolean(sub.isCompleted),
+        createdAt: Timestamp.fromDate(new Date(base + i)),
+      };
+    });
+    await setDoc(doc(tasksCollection(projectId)), {
+      projectId,
+      title: trimmed,
+      description: task.description?.trim() || null,
+      isCompleted: Boolean(task.isCompleted),
+      createdAt: Timestamp.fromDate(new Date()),
+      completedAt: null,
+      dueDate: task.dueDate ? Timestamp.fromDate(task.dueDate) : null,
+      createdBy,
+      subtasks,
+      order: base + index,
+    });
+    index++;
+  }
+}
+
 // ── Bulk import from templates (used by create screen) ──────────
 
 export async function createTasksFromTitles(
