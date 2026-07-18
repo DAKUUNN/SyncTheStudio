@@ -10,6 +10,30 @@ export interface ChangelogEntry {
 /** Newest first. Add a new entry here with every release. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "5.3.0",
+    date: "2026-07-18",
+    itemsDe: [
+      "Ende-zu-Ende-Verschlüsselung für Dateien & Master: nicht einmal SyncTheStudio kann sie öffnen — Recovery-Code sicher aufbewahren!",
+      "iOS: Scrollen repariert — Listen und Seiten lassen sich endlich durchscrollen",
+      "„Alle herunterladen“-Button für Dateien und Master mit Ordnerauswahl und Fortschrittsbalken",
+      "Audio-Anhänge direkt in der Dateiliste anhören",
+      "Projekt abschließen & archivieren: Komplett-Export, Status auf Abgeschlossen, optional Cloud-Speicher freigeben",
+      "Export: DAW-Projekt (ZIP oder Ordner) beilegen, sauber nummerierte Ordnerstruktur",
+      "Backup-Import: Vollbackup (JSON) wiederherstellen",
+      "Push-Benachrichtigung, wenn Kunden Feedback geben oder Dateien hochladen",
+    ],
+    itemsEn: [
+      "End-to-end encryption for files & masters: not even SyncTheStudio can open them — keep your recovery code safe!",
+      "iOS: scrolling fixed — lists and pages finally scroll",
+      "\"Download all\" button for files and masters with folder picker and progress bar",
+      "Listen to audio attachments right in the file list",
+      "Complete & archive a project: full export, status set to completed, optionally free up cloud storage",
+      "Export: attach your DAW project (ZIP or folder), cleanly numbered folder structure",
+      "Backup import: restore a full backup (JSON)",
+      "Push notification when customers leave feedback or upload files",
+    ],
+  },
+  {
     version: "5.2.0",
     date: "2026-07-12",
     itemsDe: [
