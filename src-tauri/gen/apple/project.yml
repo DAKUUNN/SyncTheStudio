@@ -59,8 +59,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 5.2.4
-        CFBundleVersion: "5.2.4"
+        CFBundleShortVersionString: 5.3.0
+        CFBundleVersion: "5.3.0"
         NSMicrophoneUsageDescription: Wird für die Aufnahme von Sprachnotizen bei Revisionen benötigt.
     entitlements:
       path: SyncTheStudio_iOS/SyncTheStudio_iOS.entitlements
