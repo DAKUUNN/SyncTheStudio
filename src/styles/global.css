@@ -1506,6 +1506,11 @@ input[type="range"] {
 
   .main-column {
     padding-bottom: calc(74px + env(safe-area-inset-bottom));
+    /* Column-flex (unlike the desktop row layout) applies the automatic
+     * minimum size to HEIGHT: without min-height:0 the column grows to
+     * its content height, .content never overflows, and nothing on the
+     * page can scroll — the iOS no-scroll bug. */
+    min-height: 0;
   }
 
   .content {
