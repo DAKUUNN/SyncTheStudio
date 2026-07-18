@@ -3,6 +3,9 @@ import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
 import { useIsIOS } from "@/lib/platform";
+import { getOrCreateProjectFileKey } from "@/services/fileKeyService";
+import { fetchBytes } from "@/lib/download";
+import { decryptBytes } from "@/lib/crypto";
 import { isProjectViewer, type CommentModel, type ProjectModel, type TaskModel } from "@/models/types";
 import {
   watchTasks,
@@ -34,6 +37,64 @@ function isVoiceNoteUrl(value: string): boolean {
   return value.startsWith("http") && value.includes("/voiceNotes%2F");
 }
 
+/** Voice notes from zero-knowledge links carry their IV as a `#iv=`
+ *  suffix on the stored URL — those are fetched and decrypted with the
+ *  project file key into a blob URL. Legacy notes stream directly. */
+function VoiceNoteAudio({
+  src,
+  projectFileKey,
+  lockedHint,
+}: {
+  src: string;
+  projectFileKey: string | null;
+  lockedHint: string;
+}) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const ivMatch = src.match(/#iv=([^&]+)/);
+
+  useEffect(() => {
+    if (!ivMatch) return;
+    if (!projectFileKey) return;
+    let revoked: string | null = null;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const plain = await decryptBytes(
+          await fetchBytes(src.split("#")[0]),
+          decodeURIComponent(ivMatch[1]),
+          projectFileKey
+        );
+        const buffer = plain.buffer.slice(
+          plain.byteOffset,
+          plain.byteOffset + plain.byteLength
+        ) as ArrayBuffer;
+        const url = URL.createObjectURL(new Blob([buffer], { type: "audio/webm" }));
+        revoked = url;
+        if (!cancelled) setBlobUrl(url);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src, projectFileKey]);
+
+  const style = { height: 28, marginTop: 4, maxWidth: 260 } as const;
+  if (!ivMatch) return <audio controls src={src} style={style} />;
+  if (failed || (!projectFileKey && !blobUrl)) {
+    return (
+      <div className="text-xs text-muted" style={{ marginTop: 4 }}>
+        🔒 {lockedHint}
+      </div>
+    );
+  }
+  return blobUrl ? <audio controls src={blobUrl} style={style} /> : null;
+}
+
 export function TasksTab({ project }: { project: ProjectModel }) {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
@@ -54,10 +115,24 @@ export function TasksTab({ project }: { project: ProjectModel }) {
 
   const isViewer = currentUser ? isProjectViewer(project, currentUser.id) : false;
 
+  const [projectFileKey, setProjectFileKey] = useState<string | null>(null);
+
   useEffect(() => {
     const unsubscribe = watchTasks(project.id, setTasks);
     return unsubscribe;
   }, [project.id]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    let cancelled = false;
+    void getOrCreateProjectFileKey(project, currentUser.id).then((key) => {
+      if (!cancelled) setProjectFileKey(key);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id, currentUser?.id]);
 
   const completedCount = tasks.filter((task) => task.isCompleted).length;
   const progress = tasks.length > 0 ? completedCount / tasks.length : 0;
@@ -165,10 +240,10 @@ export function TasksTab({ project }: { project: ProjectModel }) {
               )}
             </div>
             {task.description && isVoiceNoteUrl(task.description) ? (
-              <audio
-                controls
+              <VoiceNoteAudio
                 src={task.description}
-                style={{ height: 28, marginTop: 4, maxWidth: 260 }}
+                projectFileKey={projectFileKey}
+                lockedHint={t("e2e.keyLocked")}
               />
             ) : (
               task.description && (

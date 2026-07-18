@@ -92,6 +92,34 @@ export type EnsureKeysResult =
   | { state: "unlocked"; recoveryCode?: string }
   | { state: "locked" }; // wrong/changed password and no local copy → needs recovery code
 
+export type KeyStatus = "none" | "unlocked" | "locked";
+
+/** Where this device stands — used on session restore, where no
+ *  password is available to unlock with. */
+export async function getKeyStatus(userId: string): Promise<KeyStatus> {
+  if (getUnlockedMasterKey(userId)) return "unlocked";
+  const snapshot = await getDoc(keysDoc(userId));
+  return snapshot.exists() ? "locked" : "none";
+}
+
+/** Unlocks with the account password (e.g. from the session-restore
+ *  unlock dialog). Returns false when the password doesn't match the
+ *  wrapped copy. */
+export async function unlockWithPassword(userId: string, password: string): Promise<boolean> {
+  const snapshot = await getDoc(keysDoc(userId));
+  if (!snapshot.exists()) return false;
+  const data = snapshot.data() as KeysDocData;
+  if (!data.masterKeyPw || !data.pwSalt) return false;
+  try {
+    const kek = await deriveKekBase64(password, data.pwSalt, data.pwIterations);
+    const masterKey = await unwrapKeyBase64(data.masterKeyPw, kek);
+    rememberMasterKey(userId, masterKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Called right after login/registration while the password is still in
  * hand. Creates the key set on first use (returning the recovery code

@@ -394,5 +394,11 @@
   "recovery.codeLabel": "Código de recuperación",
   "recovery.unlock": "Desbloquear",
   "recovery.unlockLater": "Más tarde",
-  "recovery.wrongCode": "El código no es válido. Comprueba la entrada."
+  "recovery.wrongCode": "El código no es válido. Comprueba la entrada.",
+  "e2eUnlock.title": "Desbloquear archivos",
+  "e2eUnlock.description": "Tus archivos cifrados siguen bloqueados en este dispositivo. Introduce tu contraseña para desbloquearlos — solo ocurre una vez por dispositivo.",
+  "e2eUnlock.passwordLabel": "Contraseña",
+  "e2eUnlock.wrongPassword": "Contraseña incorrecta.",
+  "e2eUnlock.useRecovery": "Usar código de recuperación",
+  "e2eUnlock.usePassword": "Usar contraseña"
 }

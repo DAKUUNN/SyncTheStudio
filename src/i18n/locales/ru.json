@@ -394,5 +394,11 @@
   "recovery.codeLabel": "Код восстановления",
   "recovery.unlock": "Разблокировать",
   "recovery.unlockLater": "Позже",
-  "recovery.wrongCode": "Код недействителен. Проверьте ввод."
+  "recovery.wrongCode": "Код недействителен. Проверьте ввод.",
+  "e2eUnlock.title": "Разблокировать файлы",
+  "e2eUnlock.description": "Ваши зашифрованные файлы ещё заблокированы на этом устройстве. Введите пароль, чтобы разблокировать их — это делается один раз на устройство.",
+  "e2eUnlock.passwordLabel": "Пароль",
+  "e2eUnlock.wrongPassword": "Неверный пароль.",
+  "e2eUnlock.useRecovery": "Использовать код восстановления",
+  "e2eUnlock.usePassword": "Использовать пароль"
 }

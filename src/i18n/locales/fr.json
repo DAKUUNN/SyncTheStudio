@@ -394,5 +394,11 @@
   "recovery.codeLabel": "Code de récupération",
   "recovery.unlock": "Déverrouiller",
   "recovery.unlockLater": "Plus tard",
-  "recovery.wrongCode": "Ce code n'est pas valide. Vérifiez votre saisie."
+  "recovery.wrongCode": "Ce code n'est pas valide. Vérifiez votre saisie.",
+  "e2eUnlock.title": "Déverrouiller les fichiers",
+  "e2eUnlock.description": "Vos fichiers chiffrés sont encore verrouillés sur cet appareil. Saisissez votre mot de passe pour les déverrouiller — une seule fois par appareil.",
+  "e2eUnlock.passwordLabel": "Mot de passe",
+  "e2eUnlock.wrongPassword": "Mot de passe incorrect.",
+  "e2eUnlock.useRecovery": "Utiliser le code de récupération",
+  "e2eUnlock.usePassword": "Utiliser le mot de passe"
 }

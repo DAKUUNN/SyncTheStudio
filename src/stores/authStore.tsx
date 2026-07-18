@@ -16,6 +16,8 @@ import { clearProjectKeyCache } from "@/services/keyManagementService";
 import {
   ensureUserKeys,
   unlockWithRecoveryCode,
+  unlockWithPassword,
+  getKeyStatus,
   clearUnlockedKeys,
   rewrapPasswordCopy,
 } from "@/services/keyService";
@@ -77,6 +79,12 @@ interface AuthContextValue {
   needsRecoveryUnlock: boolean;
   submitRecoveryUnlock: (code: string) => Promise<boolean>;
   dismissRecoveryUnlock: () => void;
+  /** True when a restored session finds provisioned but locked file keys
+   *  on this device (e.g. right after the E2E update, or cleared storage)
+   *  — the unlock dialog asks for the password (or recovery code). */
+  needsPasswordUnlock: boolean;
+  submitPasswordUnlock: (password: string) => Promise<boolean>;
+  dismissPasswordUnlock: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -92,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [pendingRecoveryCode, setPendingRecoveryCode] = useState<string | null>(null);
   const [needsRecoveryUnlock, setNeedsRecoveryUnlock] = useState(false);
+  const [needsPasswordUnlock, setNeedsPasswordUnlock] = useState(false);
   // The freshly typed login password, kept only until the recovery-code
   // dialog rewraps the keys with it (never persisted anywhere).
   const pendingUnlockPassword = useRef<string | null>(null);
@@ -122,6 +131,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (user) {
             void authService.updateUserPresence(user.id, true);
             startDeadlineWatcher(user.id);
+            // Restored session has no password in hand — if keys exist
+            // but this device can't unlock them, prompt (otherwise every
+            // upload would silently fall back to unencrypted).
+            void getKeyStatus(user.id)
+              .then((status) => {
+                if (status === "locked") setNeedsPasswordUnlock(true);
+              })
+              .catch(() => {});
           }
         } else {
           setCurrentUser(null);
@@ -289,6 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCurrentUser(null);
       setPendingRecoveryCode(null);
       setNeedsRecoveryUnlock(false);
+      setNeedsPasswordUnlock(false);
       pendingUnlockPassword.current = null;
       setIsLoading(false);
     }
@@ -348,6 +366,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setNeedsRecoveryUnlock(false);
     pendingUnlockPassword.current = null;
   }, []);
+
+  const submitPasswordUnlock = useCallback(
+    async (password: string) => {
+      if (!currentUser) return false;
+      const ok = await unlockWithPassword(currentUser.id, password);
+      if (ok) setNeedsPasswordUnlock(false);
+      return ok;
+    },
+    [currentUser]
+  );
+
+  const dismissPasswordUnlock = useCallback(() => setNeedsPasswordUnlock(false), []);
 
   const refreshUser = useCallback(async () => {
     const user = await authService.getCurrentUser();
@@ -411,6 +441,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       needsRecoveryUnlock,
       submitRecoveryUnlock,
       dismissRecoveryUnlock,
+      needsPasswordUnlock,
+      submitPasswordUnlock,
+      dismissPasswordUnlock,
     }),
     [
       currentUser,
@@ -432,6 +465,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       needsRecoveryUnlock,
       submitRecoveryUnlock,
       dismissRecoveryUnlock,
+      needsPasswordUnlock,
+      submitPasswordUnlock,
+      dismissPasswordUnlock,
     ]
   );
 

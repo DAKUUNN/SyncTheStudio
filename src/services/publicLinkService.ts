@@ -181,11 +181,29 @@ async function syncAttachmentIntoProjectCopies(
  * from Storage Rules don't work reliably in this project, see
  * storage.rules' comment on the attachments block).
  */
-export async function uploadVoiceNote(projectId: string, blob: Blob): Promise<string> {
+export async function uploadVoiceNote(
+  projectId: string,
+  blob: Blob,
+  /** Project file key from the link's URL fragment — the note is
+   *  encrypted in the customer's browser when present, and the returned
+   *  URL carries the IV as a `#iv=` fragment (never sent to servers). */
+  encryptKey?: string | null
+): Promise<string> {
   await ensureAnonymousAuth();
   const extension = blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm";
   const path = `voiceNotes/${projectId}/${Date.now()}.${extension}`;
   const ref = storageRef(storage, path);
+
+  if (encryptKey) {
+    const { encryptBytes } = await import("@/lib/crypto");
+    const encrypted = await encryptBytes(new Uint8Array(await blob.arrayBuffer()), encryptKey);
+    const snapshot = await uploadBytes(ref, encrypted.bytes as unknown as ArrayBuffer, {
+      contentType: "application/octet-stream",
+    });
+    const url = await getDownloadURL(snapshot.ref);
+    return `${url}#iv=${encodeURIComponent(encrypted.iv)}`;
+  }
+
   const snapshot = await uploadBytes(ref, blob, { contentType: blob.type || "audio/webm" });
   return getDownloadURL(snapshot.ref);
 }

@@ -15,12 +15,17 @@ export function RecoveryKeyModals() {
     needsRecoveryUnlock,
     submitRecoveryUnlock,
     dismissRecoveryUnlock,
+    needsPasswordUnlock,
+    submitPasswordUnlock,
+    dismissPasswordUnlock,
   } = useAuth();
   const { t } = useI18n();
 
   const [copied, setCopied] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [codeInput, setCodeInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [useRecoveryFallback, setUseRecoveryFallback] = useState(false);
   const [unlockError, setUnlockError] = useState(false);
   const [unlockBusy, setUnlockBusy] = useState(false);
 
@@ -31,6 +36,24 @@ export function RecoveryKeyModals() {
     setUnlockBusy(false);
     if (!ok) setUnlockError(true);
     else setCodeInput("");
+  };
+
+  const onPasswordUnlock = async () => {
+    setUnlockBusy(true);
+    setUnlockError(false);
+    const ok = useRecoveryFallback
+      ? await submitRecoveryUnlock(codeInput)
+      : await submitPasswordUnlock(passwordInput);
+    setUnlockBusy(false);
+    if (!ok) {
+      setUnlockError(true);
+      return;
+    }
+    // recovery fallback unlocks via the other flag — close this one too
+    dismissPasswordUnlock();
+    setPasswordInput("");
+    setCodeInput("");
+    setUseRecoveryFallback(false);
   };
 
   if (pendingRecoveryCode) {
@@ -91,6 +114,80 @@ export function RecoveryKeyModals() {
           />
           <span className="text-small">{t("recovery.confirmSaved")}</span>
         </label>
+      </Modal>
+    );
+  }
+
+  if (needsPasswordUnlock && !needsRecoveryUnlock) {
+    return (
+      <Modal
+        title={t("e2eUnlock.title")}
+        onClose={dismissPasswordUnlock}
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={dismissPasswordUnlock}>
+              {t("recovery.unlockLater")}
+            </button>
+            <button
+              className="btn btn-primary"
+              disabled={
+                unlockBusy ||
+                (useRecoveryFallback ? codeInput.trim().length < 10 : passwordInput.length === 0)
+              }
+              onClick={() => void onPasswordUnlock()}
+            >
+              <IconKey /> {t("recovery.unlock")}
+            </button>
+          </>
+        }
+      >
+        <p className="text-small text-muted" style={{ marginBottom: 12 }}>
+          {t("e2eUnlock.description")}
+        </p>
+        {useRecoveryFallback ? (
+          <div className="field">
+            <label className="field-label">{t("recovery.codeLabel")}</label>
+            <input
+              className="input mono"
+              autoFocus
+              placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void onPasswordUnlock();
+              }}
+            />
+          </div>
+        ) : (
+          <div className="field">
+            <label className="field-label">{t("e2eUnlock.passwordLabel")}</label>
+            <input
+              className="input"
+              type="password"
+              autoFocus
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void onPasswordUnlock();
+              }}
+            />
+          </div>
+        )}
+        {unlockError && (
+          <div className="text-xs" style={{ color: "var(--danger)", marginTop: 6 }}>
+            {useRecoveryFallback ? t("recovery.wrongCode") : t("e2eUnlock.wrongPassword")}
+          </div>
+        )}
+        <button
+          className="btn btn-secondary btn-sm"
+          style={{ marginTop: 12 }}
+          onClick={() => {
+            setUseRecoveryFallback((v) => !v);
+            setUnlockError(false);
+          }}
+        >
+          {useRecoveryFallback ? t("e2eUnlock.usePassword") : t("e2eUnlock.useRecovery")}
+        </button>
       </Modal>
     );
   }

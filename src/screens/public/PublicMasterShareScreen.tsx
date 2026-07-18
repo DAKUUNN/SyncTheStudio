@@ -562,7 +562,7 @@ function MasterCompareStudio({
         if (point.type === "text") {
           taskEntries.push({ title: point.text, description: null });
         } else {
-          const url = await uploadVoiceNote(projectId, point.blob);
+          const url = await uploadVoiceNote(projectId, point.blob, readKeyFragment());
           taskEntries.push({
             title: `Sprachnotiz bei ${formatTime(point.pinnedAtSeconds)}`,
             description: url,

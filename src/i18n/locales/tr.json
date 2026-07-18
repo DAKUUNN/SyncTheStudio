@@ -394,5 +394,11 @@
   "recovery.codeLabel": "Kurtarma kodu",
   "recovery.unlock": "Kilidi aç",
   "recovery.unlockLater": "Sonra",
-  "recovery.wrongCode": "Kod geçersiz. Girişini kontrol et."
+  "recovery.wrongCode": "Kod geçersiz. Girişini kontrol et.",
+  "e2eUnlock.title": "Dosyaların kilidini aç",
+  "e2eUnlock.description": "Şifreli dosyaların bu cihazda hâlâ kilitli. Kilidi açmak için parolanı gir — bu her cihazda yalnızca bir kez yapılır.",
+  "e2eUnlock.passwordLabel": "Parola",
+  "e2eUnlock.wrongPassword": "Yanlış parola.",
+  "e2eUnlock.useRecovery": "Bunun yerine kurtarma kodu kullan",
+  "e2eUnlock.usePassword": "Bunun yerine parola kullan"
 }
