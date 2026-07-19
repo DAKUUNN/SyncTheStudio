@@ -400,5 +400,6 @@
   "e2eUnlock.passwordLabel": "Пароль",
   "e2eUnlock.wrongPassword": "Неверный пароль.",
   "e2eUnlock.useRecovery": "Использовать код восстановления",
-  "e2eUnlock.usePassword": "Использовать пароль"
+  "e2eUnlock.usePassword": "Использовать пароль",
+  "projects.filters": "Фильтры"
 }

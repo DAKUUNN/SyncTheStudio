@@ -68,6 +68,13 @@ export function ProjectListScreen() {
   );
   const [priorityFilter, setPriorityFilter] = useState<ProjectPriority | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  // mobile-only: the chip rows collapse behind a "Filter" toggle
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilterCount =
+    (ownershipTab !== "all" ? 1 : 0) +
+    (statusFilter ? 1 : 0) +
+    (priorityFilter ? 1 : 0) +
+    (favoritesOnly ? 1 : 0);
   const [searchText, setSearchText] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("status");
   const [selectionMode, setSelectionMode] = useState(false);
@@ -300,9 +307,16 @@ export function ProjectListScreen() {
               <IconColumns />
             </button>
           </div>
+          <button
+            className={`chip mobile-filter-toggle${filtersOpen || activeFilterCount > 0 ? " active" : ""}`}
+            onClick={() => setFiltersOpen((v) => !v)}
+          >
+            {t("projects.filters")}
+            {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          </button>
         </div>
 
-        <div className="row row-wrap">
+        <div className={`row row-wrap project-filters-advanced${filtersOpen ? " open" : ""}`}>
           <button
             className={`chip${ownershipTab === "all" ? " active" : ""}`}
             onClick={() => setOwnershipTab("all")}

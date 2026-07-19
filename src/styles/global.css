@@ -939,6 +939,12 @@ input[type="range"] {
 }
 .stat-icon svg { width: 18px; height: 18px; }
 
+/* Mobile-only filter collapse (project list): the chip rows hide
+ * behind a "Filter" toggle chip on phone widths. */
+.mobile-filter-toggle {
+  display: none;
+}
+
 /* ── Project grid ───────────────────────────────────────────── */
 
 .project-grid {
@@ -983,7 +989,9 @@ input[type="range"] {
   text-align: center;
 }
 
-.empty-state svg {
+/* Direct child only — buttons inside the empty state keep their own
+ * icon sizing (a bare descendant selector blew their + icons up to 44px) */
+.empty-state > svg {
   width: 44px;
   height: 44px;
   color: var(--text-faint);
@@ -1515,6 +1523,25 @@ input[type="range"] {
 
   .content {
     padding: 16px 16px 32px;
+  }
+
+  .mobile-filter-toggle {
+    display: inline-flex;
+  }
+
+  .project-filters-advanced:not(.open) {
+    display: none;
+  }
+
+  /* Stat cards: 2×2 grid instead of four stacked full-width cards */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 12px;
+    gap: 4px;
   }
 
   .mobile-tabbar {

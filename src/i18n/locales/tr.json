@@ -400,5 +400,6 @@
   "e2eUnlock.passwordLabel": "Parola",
   "e2eUnlock.wrongPassword": "Yanlış parola.",
   "e2eUnlock.useRecovery": "Bunun yerine kurtarma kodu kullan",
-  "e2eUnlock.usePassword": "Bunun yerine parola kullan"
+  "e2eUnlock.usePassword": "Bunun yerine parola kullan",
+  "projects.filters": "Filtreler"
 }

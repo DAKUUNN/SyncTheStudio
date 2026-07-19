@@ -59,7 +59,8 @@ export function restartOnboarding(userId: string): void {
  *  Auto-starts once per account; replayable from Settings via
  *  restartOnboarding(). */
 export function OnboardingTour() {
-  const { currentUser } = useAuth();
+  const { currentUser, pendingRecoveryCode, needsRecoveryUnlock, needsPasswordUnlock } =
+    useAuth();
   const isMobile = useIsIOS();
   const steps = useMemo(
     () => (currentUser ? accountSteps(hasPremiumStorage(currentUser), isMobile) : []),
@@ -71,6 +72,10 @@ export function OnboardingTour() {
       steps={steps}
       storageKey={accountSeenKey(currentUser.id)}
       restartEventName={ACCOUNT_RESTART_EVENT}
+      // The recovery-code dialog must never be covered by the tour —
+      // it is shown exactly once and losing it means losing file access
+      // after a password reset.
+      ready={!pendingRecoveryCode && !needsRecoveryUnlock && !needsPasswordUnlock}
     />
   );
 }

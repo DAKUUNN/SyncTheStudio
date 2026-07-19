@@ -652,6 +652,7 @@
   "projects.emptySubtitle": "Erstelle dein erstes Projekt.",
   "projects.emptyTitle": "Keine Projekte gefunden",
   "projects.favorites": "Favoriten",
+  "projects.filters": "Filter",
   "projects.noDeadline": "Keine Deadline",
   "projects.select": "Auswählen",
   "projects.selectedCount": "{count} ausgewählt",

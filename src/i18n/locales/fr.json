@@ -400,5 +400,6 @@
   "e2eUnlock.passwordLabel": "Mot de passe",
   "e2eUnlock.wrongPassword": "Mot de passe incorrect.",
   "e2eUnlock.useRecovery": "Utiliser le code de récupération",
-  "e2eUnlock.usePassword": "Utiliser le mot de passe"
+  "e2eUnlock.usePassword": "Utiliser le mot de passe",
+  "projects.filters": "Filtres"
 }
