@@ -68,6 +68,11 @@ export function ProjectListScreen() {
   );
   const [priorityFilter, setPriorityFilter] = useState<ProjectPriority | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const isIOS = useIsIOS();
+  // The board (kanban) view is desktop-only — horizontal drag columns
+  // don't fit a phone. A previously stored "board" preference falls
+  // back to the grid.
+  const effectiveViewMode: ViewMode = isIOS && viewMode === "board" ? "grid" : viewMode;
   // mobile-only: the chip rows collapse behind a "Filter" toggle
   const [filtersOpen, setFiltersOpen] = useState(false);
   const activeFilterCount =
@@ -298,14 +303,16 @@ export function ProjectListScreen() {
             >
               <IconList />
             </button>
-            <button
-              className="icon-btn"
-              style={viewMode === "board" ? { color: "var(--primary)", background: "var(--primary-soft)" } : undefined}
-              onClick={() => setViewMode("board")}
-              title="Board"
-            >
-              <IconColumns />
-            </button>
+            {!isIOS && (
+              <button
+                className="icon-btn"
+                style={viewMode === "board" ? { color: "var(--primary)", background: "var(--primary-soft)" } : undefined}
+                onClick={() => setViewMode("board")}
+                title="Board"
+              >
+                <IconColumns />
+              </button>
+            )}
           </div>
           <button
             className={`chip mobile-filter-toggle${filtersOpen || activeFilterCount > 0 ? " active" : ""}`}
@@ -404,7 +411,7 @@ export function ProjectListScreen() {
             }
           />
         </div>
-      ) : viewMode === "board" ? (
+      ) : effectiveViewMode === "board" ? (
         <BoardView
           projects={filtered}
           statuses={statuses}
@@ -417,7 +424,7 @@ export function ProjectListScreen() {
             }
           }}
         />
-      ) : viewMode === "list" ? (
+      ) : effectiveViewMode === "list" ? (
         <div className="card">
           {filtered.map((project) => (
             <div
