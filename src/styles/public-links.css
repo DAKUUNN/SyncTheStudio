@@ -1,5 +1,9 @@
 .public-link-page {
-  min-height: 100vh;
+  /* Fixed viewport-height box: makes .public-link-wrap below the one
+   * and only scroll container, instead of relying on the document/body
+   * (global.css caps body at height:100%/overflow:hidden for the main
+   * app's shell layout, which silently kills scrolling here too). */
+  height: 100dvh;
   position: relative;
   overflow: hidden;
   background:
@@ -24,9 +28,20 @@
 .public-link-wrap {
   position: relative;
   z-index: 1;
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Horizontal centering via flex, NOT grid place-items — centering an
+   * overflowing child with place-items/align-items:center clips its
+   * start edge instead of scrolling to it. Top-aligned flow scrolls
+   * normally when content is taller than the viewport. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* "safe" keeps content centered when it fits, but falls back to
+   * top-aligned (scrollable) instead of clipping once it doesn't. */
+  justify-content: safe center;
   padding: 28px;
 }
 
