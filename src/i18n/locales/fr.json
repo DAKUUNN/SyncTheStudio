@@ -401,5 +401,7 @@
   "e2eUnlock.wrongPassword": "Mot de passe incorrect.",
   "e2eUnlock.useRecovery": "Utiliser le code de récupération",
   "e2eUnlock.usePassword": "Utiliser le mot de passe",
-  "projects.filters": "Filtres"
+  "projects.filters": "Filtres",
+  "archive.doneWithSkipped": "{count} fichier(s) n'ont pas pu être exportés (clé verrouillée) — voir « 00 ACHTUNG » dans le dossier exporté",
+  "archive.cleanupSkippedDueToExportGaps": "Suppression cloud ignorée : {count} fichier(s) manquent dans l'export — déverrouillez et réexportez avant de supprimer"
 }

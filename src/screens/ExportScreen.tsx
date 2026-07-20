@@ -288,8 +288,8 @@ export function ExportScreen() {
           className="btn btn-primary"
           disabled={!selectedProject || busy !== null}
           onClick={() =>
-            void runExport("folder", () =>
-              exportProjectAsFolder({
+            void runExport("folder", async () => {
+              const result = await exportProjectAsFolder({
                 userId: currentUser.id,
                 project: selectedProject!,
                 includeProjectText: includeOptions.projectText,
@@ -302,8 +302,12 @@ export function ExportScreen() {
                 dawProjectPath: dawProject?.path ?? null,
                 dawProjectIsDirectory: dawProject?.isDirectory ?? false,
                 onProgress: setProgressLabel,
-              })
-            )
+              });
+              if (result && result.skippedCount > 0) {
+                showToast(t("archive.doneWithSkipped", { count: result.skippedCount }), "warning");
+              }
+              return result?.folder ?? null;
+            })
           }
         >
           {busy === "folder" ? <Spinner /> : <IconFolder />}

@@ -401,5 +401,7 @@
   "e2eUnlock.wrongPassword": "Yanlış parola.",
   "e2eUnlock.useRecovery": "Bunun yerine kurtarma kodu kullan",
   "e2eUnlock.usePassword": "Bunun yerine parola kullan",
-  "projects.filters": "Filtreler"
+  "projects.filters": "Filtreler",
+  "archive.doneWithSkipped": "{count} dosya dışa aktarılamadı (anahtar kilitli) — dışa aktarma klasöründeki \"00 ACHTUNG\" dosyasına bakın",
+  "archive.cleanupSkippedDueToExportGaps": "Bulut silme atlandı: dışa aktarmada {count} dosya eksik — silmeden önce kilidi açıp yeniden dışa aktarın"
 }

@@ -401,5 +401,7 @@
   "e2eUnlock.wrongPassword": "Contraseña incorrecta.",
   "e2eUnlock.useRecovery": "Usar código de recuperación",
   "e2eUnlock.usePassword": "Usar contraseña",
-  "projects.filters": "Filtros"
+  "projects.filters": "Filtros",
+  "archive.doneWithSkipped": "{count} archivo(s) no se pudieron exportar (clave bloqueada) — ver \"00 ACHTUNG\" en la carpeta exportada",
+  "archive.cleanupSkippedDueToExportGaps": "Eliminación en la nube omitida: faltan {count} archivo(s) en la exportación — desbloquea y vuelve a exportar antes de eliminar"
 }

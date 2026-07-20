@@ -401,5 +401,7 @@
   "e2eUnlock.wrongPassword": "Неверный пароль.",
   "e2eUnlock.useRecovery": "Использовать код восстановления",
   "e2eUnlock.usePassword": "Использовать пароль",
-  "projects.filters": "Фильтры"
+  "projects.filters": "Фильтры",
+  "archive.doneWithSkipped": "Не удалось экспортировать файлов: {count} (ключ заблокирован) — см. «00 ACHTUNG» в папке экспорта",
+  "archive.cleanupSkippedDueToExportGaps": "Удаление из облака пропущено: в экспорте не хватает файлов: {count} — разблокируйте и экспортируйте заново перед удалением"
 }

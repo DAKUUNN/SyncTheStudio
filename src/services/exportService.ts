@@ -1,5 +1,5 @@
 import { save, open as openDialog } from "@tauri-apps/plugin-dialog";
-import { writeTextFile, writeFile, mkdir, copyFile, readDir } from "@tauri-apps/plugin-fs";
+import { writeTextFile, writeFile, mkdir, copyFile, readDir, exists } from "@tauri-apps/plugin-fs";
 import { fetchBytes } from "@/lib/download";
 import { getProjects, getProjectHistory } from "./projectService";
 import { getCustomers } from "./customerService";
@@ -252,7 +252,7 @@ export async function exportProjectAsFolder(params: {
   dawProjectPath?: string | null;
   dawProjectIsDirectory?: boolean;
   onProgress?: (label: string) => void;
-}): Promise<string | null> {
+}): Promise<{ folder: string; skippedCount: number } | null> {
   // recursive: without it the dialog only scopes the folder itself, and
   // every write inside the created export subfolder is rejected by fs.
   const destination = await openDialog({
@@ -263,8 +263,17 @@ export async function exportProjectAsFolder(params: {
   });
   if (!destination || typeof destination !== "string") return null;
 
-  const safeName = params.project.name.replace(/[\\/:*?"<>|]/g, "_") || "Projekt";
-  const folder = `${destination}/${safeName}_${timestampSuffix()}`;
+  // "Kunde - Projektname" (or just the project name without a customer) —
+  // no timestamp/number suffix by default; one is only appended if that
+  // exact folder already exists, so a re-export never silently mixes old
+  // and new files into the same directory.
+  const customerName = params.project.customerName?.trim();
+  const label = customerName ? `${customerName} - ${params.project.name}` : params.project.name;
+  const safeName = label.replace(/[\\/:*?"<>|]/g, "_").trim() || "Projekt";
+  let folder = `${destination}/${safeName}`;
+  for (let i = 2; await exists(folder); i++) {
+    folder = `${destination}/${safeName} (${i})`;
+  }
   await mkdir(folder, { recursive: true });
 
   const p = params.project;
@@ -340,6 +349,10 @@ export async function exportProjectAsFolder(params: {
   }
 
   const projectFileKey = await getOrCreateProjectFileKey(p, params.userId);
+  // Tracked instead of silently dropped — a locked device (or a failed
+  // download) must never make files vanish from an export without a
+  // trace the user can actually see.
+  const skipped: string[] = [];
 
   if (params.includeAttachments) {
     const filesFolder = `${folder}/06 Dateien`;
@@ -356,10 +369,11 @@ export async function exportProjectAsFolder(params: {
           await writeFile(`${filesFolder}/${sanitizeFileName(originalName)}`, plain);
         } else if (!meta) {
           await downloadUrlToFile(url, `${filesFolder}/${sanitizeFileName(originalName)}`);
+        } else {
+          skipped.push(`${originalName} (Datei-Schlüssel gesperrt — bitte entsperren und erneut exportieren)`);
         }
-        // encrypted attachment without key: skip — ciphertext on disk is useless
       } catch {
-        // best-effort — skip files that fail to download, continue export
+        skipped.push(`${originalName} (Download fehlgeschlagen)`);
       }
     }
   }
@@ -374,7 +388,10 @@ export async function exportProjectAsFolder(params: {
       params.onProgress?.(`Master ${index}/${masters.length}: ${master.versionName}`);
       try {
         const masterKey = await resolveMasterFileKey(master, projectFileKey);
-        if (master.encrypted && !masterKey) continue; // locked — skip ciphertext
+        if (master.encrypted && !masterKey) {
+          skipped.push(`${master.versionName} (Master-Schlüssel gesperrt — bitte entsperren und erneut exportieren)`);
+          continue;
+        }
         const encryptedBytes = await fetchBytes(master.fileUrl);
         const plainBytes = master.encrypted
           ? await decryptBytes(encryptedBytes, master.iv, masterKey!)
@@ -384,9 +401,20 @@ export async function exportProjectAsFolder(params: {
         );
         await writeFile(`${mastersFolder}/${fileName}`, plainBytes);
       } catch {
-        // best-effort — skip masters that fail to download, continue export
+        skipped.push(`${master.versionName} (Download fehlgeschlagen)`);
       }
     }
+  }
+
+  if (skipped.length > 0) {
+    await writeTextFile(
+      `${folder}/00 ACHTUNG - Nicht exportierte Dateien.txt`,
+      [
+        `${skipped.length} Datei(en) konnten nicht mit exportiert werden:`,
+        "",
+        ...skipped.map((s) => `- ${s}`),
+      ].join("\n")
+    );
   }
 
   if (params.dawProjectPath) {
@@ -401,5 +429,5 @@ export async function exportProjectAsFolder(params: {
     }
   }
 
-  return folder;
+  return { folder, skippedCount: skipped.length };
 }

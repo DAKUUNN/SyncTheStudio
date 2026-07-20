@@ -36,22 +36,28 @@ export function ArchiveProjectModal({
     if (!currentUser) return;
     setBusy(true);
     try {
-      const folder = await exportProjectAsFolder({
+      const result = await exportProjectAsFolder({
         userId: currentUser.id,
         project,
         includeAttachments: true,
         includeMasters: true,
         onProgress: setProgressLabel,
       });
-      if (!folder) {
+      if (!result) {
         // user cancelled the folder picker — abort without touching anything
         setBusy(false);
         setProgressLabel(null);
         return;
       }
+      const { folder, skippedCount } = result;
 
+      // Never delete the only copy of a file that couldn't be exported
+      // (e.g. its key was locked on this device) — that would lose it
+      // for good instead of just leaving it in the cloud.
       let cleanupFailures = 0;
-      if (deleteCloudFiles) {
+      if (deleteCloudFiles && skippedCount > 0) {
+        showToast(t("archive.cleanupSkippedDueToExportGaps", { count: skippedCount }), "warning");
+      } else if (deleteCloudFiles) {
         setProgressLabel(t("archive.deletingCloud"));
         for (const url of project.attachments) {
           try {
@@ -78,12 +84,13 @@ export function ArchiveProjectModal({
         `Projekt archiviert (Export: ${folder})`
       );
 
-      showToast(
-        cleanupFailures > 0
-          ? t("archive.doneWithFailures", { count: cleanupFailures })
-          : t("archive.done"),
-        cleanupFailures > 0 ? "warning" : "success"
-      );
+      if (cleanupFailures > 0) {
+        showToast(t("archive.doneWithFailures", { count: cleanupFailures }), "warning");
+      } else if (skippedCount > 0) {
+        showToast(t("archive.doneWithSkipped", { count: skippedCount }), "warning");
+      } else {
+        showToast(t("archive.done"), "success");
+      }
       onClose();
       await onDone();
     } catch (e) {
