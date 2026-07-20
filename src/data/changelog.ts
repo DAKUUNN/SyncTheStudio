@@ -10,6 +10,20 @@ export interface ChangelogEntry {
 /** Newest first. Add a new entry here with every release. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "5.5.0",
+    date: "2026-07-20",
+    itemsDe: [
+      "Push-Benachrichtigungen (Chat, Feedback, Kunden-Upload) springen beim Antippen/Klicken direkt zum richtigen Projekt-Tab",
+      "Dashboard: Schnellaktionen durch Projekt-Statistik ersetzt (Projekte diese Woche/diesen Monat erstellt)",
+      "Master-Review- und Kunden-Upload-Links sind jetzt standardmäßig maskiert, erst nach Klick sichtbar",
+    ],
+    itemsEn: [
+      "Tapping/clicking a push notification (chat, feedback, customer upload) jumps straight to the right project tab",
+      "Dashboard: quick actions replaced with a project stats card (projects created this week/month)",
+      "Master review and customer upload links are now masked by default, only shown after a click",
+    ],
+  },
+  {
     version: "5.4.0",
     date: "2026-07-20",
     itemsDe: [
