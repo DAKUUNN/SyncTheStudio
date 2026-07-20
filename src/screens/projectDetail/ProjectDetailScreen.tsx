@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
@@ -52,17 +52,30 @@ import { ProjectDetailTour } from "@/components/ProjectDetailTour";
 
 type DetailTab = "info" | "files" | "team" | "chat" | "tasks" | "time" | "history";
 
+const DETAIL_TABS: DetailTab[] = ["info", "files", "team", "chat", "tasks", "time", "history"];
+
+function isDetailTab(value: unknown): value is DetailTab {
+  return typeof value === "string" && (DETAIL_TABS as string[]).includes(value);
+}
+
 export function ProjectDetailScreen() {
   const { projectId } = useParams<{ projectId: string }>();
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const { t, lang } = useI18n();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [project, setProject] = useState<ProjectModel | null>(null);
   const [statuses, setStatuses] = useState<CustomStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<DetailTab>("info");
+  // A notification click (in-app, desktop local push, or an iOS push tap)
+  // can ask to land directly on a specific tab instead of always Info —
+  // see PushNavigationHandler.tsx and NotificationsScreen.tsx.
+  const [tab, setTab] = useState<DetailTab>(() => {
+    const requested = (location.state as { tab?: unknown } | null)?.tab;
+    return isDetailTab(requested) ? requested : "info";
+  });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);

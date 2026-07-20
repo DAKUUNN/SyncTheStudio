@@ -57,6 +57,8 @@ import {
   IconMessage,
   IconPlay,
   IconPause,
+  IconEye,
+  IconEyeOff,
 } from "@/components/Icons";
 
 const AUDIO_EXTENSIONS = ["mp3", "wav", "aiff", "aif", "flac", "m4a", "ogg"];
@@ -662,18 +664,7 @@ export function FilesTab({
                     </span>
                   )}
                 </div>
-                <div
-                  className="mono text-xs"
-                  style={{
-                    padding: "8px 10px",
-                    background: "var(--surface-2)",
-                    borderRadius: "var(--radius-sm)",
-                    wordBreak: "break-all",
-                    marginBottom: 10,
-                  }}
-                >
-                  {appendKeyFragment(uploadLink.url, projectFileKey)}
-                </div>
+                <RevealableLinkBox value={appendKeyFragment(uploadLink.url, projectFileKey)} />
                 <div className="row row-wrap">
                   <button
                     className="btn btn-secondary btn-sm"
@@ -919,18 +910,7 @@ export function FilesTab({
                     </span>
                   )}
                 </div>
-                <div
-                  className="mono text-xs"
-                  style={{
-                    padding: "8px 10px",
-                    background: "var(--surface-2)",
-                    borderRadius: "var(--radius-sm)",
-                    wordBreak: "break-all",
-                    marginBottom: 10,
-                  }}
-                >
-                  {appendKeyFragment(share.url, projectFileKey)}
-                </div>
+                <RevealableLinkBox value={appendKeyFragment(share.url, projectFileKey)} />
                 <div className="row row-wrap">
                   <button
                     className="btn btn-secondary btn-sm"
@@ -1091,6 +1071,41 @@ export function FilesTab({
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+/** Public share/upload links are capable enough (download access, no
+ *  login) that they shouldn't just sit exposed on screen — masked by
+ *  default, only shown after an explicit click. Copying still works
+ *  without revealing it, since that isn't the same as displaying it. */
+function RevealableLinkBox({ value }: { value: string }) {
+  const { t } = useI18n();
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="row" style={{ gap: 8, marginBottom: 10, alignItems: "stretch" }}>
+      <div
+        className="mono text-xs grow"
+        style={{
+          padding: "8px 10px",
+          background: "var(--surface-2)",
+          borderRadius: "var(--radius-sm)",
+          wordBreak: visible ? "break-all" : "normal",
+          letterSpacing: visible ? "normal" : 2,
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        {visible ? value : "•".repeat(28)}
+      </div>
+      <button
+        className="icon-btn"
+        title={visible ? t("common.hideLink") : t("common.showLink")}
+        onClick={() => setVisible((v) => !v)}
+      >
+        {visible ? <IconEyeOff /> : <IconEye />}
+      </button>
     </div>
   );
 }

@@ -414,5 +414,10 @@
   "calendar.today": "Сегодня",
   "calendar.more": "+{count} ещё",
   "calendar.emptyTitle": "Дедлайны не найдены",
-  "calendar.deadlineOf": "Дедлайн проекта {project}"
+  "calendar.deadlineOf": "Дедлайн проекта {project}",
+  "home.projectStats": "Статистика проектов",
+  "home.projectsThisWeek": "Создано на этой неделе",
+  "home.projectsThisMonth": "Создано в этом месяце",
+  "common.showLink": "Показать ссылку",
+  "common.hideLink": "Скрыть ссылку"
 }

@@ -11,6 +11,7 @@ import { WhatsNewModal } from "@/components/WhatsNewModal";
 import { AppContextMenu } from "@/components/AppContextMenu";
 import { RecoveryKeyModals } from "@/components/RecoveryKeyModals";
 import { DawAutoTracker } from "@/components/DawAutoTracker";
+import { PushNavigationHandler } from "@/components/PushNavigationHandler";
 import { LoginScreen } from "@/screens/LoginScreen";
 import { RegisterScreen } from "@/screens/RegisterScreen";
 import { DashboardScreen } from "@/screens/DashboardScreen";
@@ -118,6 +119,7 @@ function AuthGate() {
 
   return (
     <AppLayout>
+      <PushNavigationHandler />
       <Routes>
         <Route path="/" element={<DashboardScreen />} />
         <Route path="/projects" element={<ProjectListScreen />} />

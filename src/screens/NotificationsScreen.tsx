@@ -124,7 +124,11 @@ export function NotificationsScreen() {
               onClick={() => {
                 void markAsRead(item.id, currentUser.id);
                 if (item.type === "invitation") navigate("/inbox");
-                else if (item.projectId) navigate(`/projects/${item.projectId}`);
+                else if (item.projectId) {
+                  navigate(`/projects/${item.projectId}`, {
+                    state: item.screen ? { tab: item.screen } : undefined,
+                  });
+                }
               }}
             >
               <div

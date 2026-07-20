@@ -486,6 +486,10 @@ export interface NotificationModel {
   targetUserId: string | null;
   targetUserIds: string[];
   projectId: string | null;
+  /** Which project-detail tab this notification should deep-link to when
+   *  clicked/tapped — "chat", "files", "tasks", etc. Null falls back to
+   *  the project's default (Info) tab. */
+  screen: string | null;
   readBy: string[];
   createdAt: Date;
   isRead: boolean;
@@ -504,6 +508,7 @@ export function notificationFromDocument(doc: DocumentSnapshot): NotificationMod
     targetUserId: (data.targetUserId as string | undefined) ?? null,
     targetUserIds: parseStringList(data.targetUserIds),
     projectId: (data.projectId as string | undefined) ?? null,
+    screen: (data.screen as string | undefined) ?? null,
     readBy: parseStringList(data.readBy),
     createdAt: parseDate(data.createdAt) ?? new Date(),
     isRead: Boolean(data.isRead ?? false),

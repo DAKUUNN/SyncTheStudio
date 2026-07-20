@@ -414,5 +414,10 @@
   "calendar.today": "Aujourd'hui",
   "calendar.more": "+{count} de plus",
   "calendar.emptyTitle": "Aucune échéance trouvée",
-  "calendar.deadlineOf": "Échéance de {project}"
+  "calendar.deadlineOf": "Échéance de {project}",
+  "home.projectStats": "Statistiques de projets",
+  "home.projectsThisWeek": "Créés cette semaine",
+  "home.projectsThisMonth": "Créés ce mois-ci",
+  "common.showLink": "Afficher le lien",
+  "common.hideLink": "Masquer le lien"
 }

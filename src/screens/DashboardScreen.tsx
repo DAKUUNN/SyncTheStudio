@@ -18,10 +18,9 @@ import {
   IconClock,
   IconCheckCircle,
   IconPlus,
-  IconInbox,
   IconAlert,
   IconCalendar,
-  IconSearch,
+  IconChart,
 } from "@/components/Icons";
 
 type ReminderFocus = "today" | "week" | "overdue";
@@ -91,6 +90,19 @@ export function DashboardScreen() {
         .slice(0, 6),
     [allProjects]
   );
+
+  // How many projects the user themselves created — own projects only,
+  // not ones shared with them by someone else.
+  const creationStats = useMemo(() => {
+    const now = new Date();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7)); // Monday
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return {
+      thisWeek: ownProjects.filter((p) => p.createdAt >= startOfWeek).length,
+      thisMonth: ownProjects.filter((p) => p.createdAt >= startOfMonth).length,
+    };
+  }, [ownProjects]);
 
   if (!currentUser) return null;
 
@@ -261,28 +273,25 @@ export function DashboardScreen() {
           </div>
 
           <div className="card card-pad">
-            <div className="section-title">{t("home.quickActions")}</div>
+            <div className="section-title">
+              <IconChart style={{ width: 13, height: 13, verticalAlign: -2 }} />{" "}
+              {t("home.projectStats")}
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <QuickAction
-                icon={<IconPlus />}
-                label={t("home.newProject")}
-                onClick={() => navigate("/projects/new")}
-              />
-              <QuickAction
-                icon={<IconUsers />}
-                label={t("nav.customers")}
-                onClick={() => navigate("/customers")}
-              />
-              <QuickAction
-                icon={<IconInbox />}
-                label={t("inbox.title")}
-                onClick={() => navigate("/inbox")}
-              />
-              <QuickAction
-                icon={<IconSearch />}
-                label={t("search.title")}
-                onClick={() => navigate("/search")}
-              />
+              <div
+                className="stat-card"
+                style={{ cursor: "default" }}
+              >
+                <div className="stat-value">{creationStats.thisWeek}</div>
+                <div className="stat-label">{t("home.projectsThisWeek")}</div>
+              </div>
+              <div
+                className="stat-card"
+                style={{ cursor: "default" }}
+              >
+                <div className="stat-value">{creationStats.thisMonth}</div>
+                <div className="stat-label">{t("home.projectsThisMonth")}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -325,22 +334,3 @@ function StatCard({
   );
 }
 
-function QuickAction({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      className="btn btn-secondary"
-      style={{ justifyContent: "flex-start", padding: "10px 12px" }}
-      onClick={onClick}
-    >
-      {icon} <span className="truncate">{label}</span>
-    </button>
-  );
-}

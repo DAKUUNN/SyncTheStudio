@@ -9,13 +9,35 @@ struct PushTokenResult: Encodable {
   let fcmToken: String
 }
 
+struct NotificationTapPayload: Encodable {
+  let projectId: String?
+  let screen: String?
+}
+
 /// Requests notification permission, registers for APNs, and hands the
 /// resulting Firebase Cloud Messaging token back to JS — which stores it
 /// on the user's Firestore doc so a Cloud Function can target sends via
 /// the standard `firebase-admin` messaging API.
-class PushTokenPlugin: Plugin, MessagingDelegate {
+///
+/// Also owns tap handling for those remote pushes: when the user taps a
+/// chat/master-feedback/customer-upload notification, this forwards its
+/// `projectId`/`screen` data payload to JS (see PushNavigationHandler.tsx)
+/// so the app can jump straight to the right project tab instead of just
+/// opening to the default screen.
+class PushTokenPlugin: Plugin, MessagingDelegate, UNUserNotificationCenterDelegate {
   private static var pendingInvoke: Invoke?
   private static var delegateInjected = false
+
+  /// tauri-plugin-notification also wants to be the UNUserNotificationCenter
+  /// delegate (for its local, scheduled notifications — deadline reminders
+  /// on desktop *and* iOS). There's only one delegate slot, and it force-
+  /// unwraps its own bookkeeping for any notification it doesn't recognize,
+  /// so simply overwriting its delegate would crash it on its own local
+  /// notifications. Instead this chains through: remote (APNs/FCM) pushes
+  /// are handled here, everything else — including local notifications
+  /// whose trigger isn't a UNPushNotificationTrigger — is forwarded
+  /// unchanged to whichever delegate was registered before us.
+  private var previousDelegate: UNUserNotificationCenterDelegate?
 
   override init() {
     super.init()
@@ -24,6 +46,10 @@ class PushTokenPlugin: Plugin, MessagingDelegate {
     }
     Messaging.messaging().delegate = self
     PushTokenPlugin.injectAppDelegateHooks()
+
+    let center = UNUserNotificationCenter.current()
+    previousDelegate = center.delegate
+    center.delegate = self
   }
 
   @objc public func register(_ invoke: Invoke) throws {
@@ -46,6 +72,59 @@ class PushTokenPlugin: Plugin, MessagingDelegate {
     guard let token = fcmToken, PushTokenPlugin.pendingInvoke != nil else { return }
     PushTokenPlugin.pendingInvoke?.resolve(PushTokenResult(fcmToken: token))
     PushTokenPlugin.pendingInvoke = nil
+  }
+
+  // MARK: - UNUserNotificationCenterDelegate
+
+  private func isRemotePush(_ trigger: UNNotificationTrigger?) -> Bool {
+    trigger?.isKind(of: UNPushNotificationTrigger.self) == true
+  }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    guard isRemotePush(notification.request.trigger) else {
+      if let previousDelegate = previousDelegate,
+        previousDelegate.responds(
+          to: #selector(UNUserNotificationCenterDelegate.userNotificationCenter(_:willPresent:withCompletionHandler:))) {
+        previousDelegate.userNotificationCenter?(
+          center, willPresent: notification, withCompletionHandler: completionHandler)
+      } else {
+        completionHandler([])
+      }
+      return
+    }
+    // Show the banner/sound/badge for remote pushes while the app is in
+    // the foreground, same as if no custom delegate were installed at all.
+    completionHandler([.banner, .sound, .badge])
+  }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    guard isRemotePush(response.notification.request.trigger) else {
+      if let previousDelegate = previousDelegate,
+        previousDelegate.responds(
+          to: #selector(UNUserNotificationCenterDelegate.userNotificationCenter(_:didReceive:withCompletionHandler:))) {
+        previousDelegate.userNotificationCenter?(
+          center, didReceive: response, withCompletionHandler: completionHandler)
+      } else {
+        completionHandler()
+      }
+      return
+    }
+
+    let userInfo = response.notification.request.content.userInfo
+    let payload = NotificationTapPayload(
+      projectId: userInfo["projectId"] as? String,
+      screen: userInfo["screen"] as? String
+    )
+    try? self.trigger("notificationTapped", data: payload)
+    completionHandler()
   }
 
   // MARK: - AppDelegate method injection

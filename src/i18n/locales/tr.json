@@ -414,5 +414,10 @@
   "calendar.today": "Bugün",
   "calendar.more": "+{count} tane daha",
   "calendar.emptyTitle": "Teslim tarihi bulunamadı",
-  "calendar.deadlineOf": "{project} projesinin teslim tarihi"
+  "calendar.deadlineOf": "{project} projesinin teslim tarihi",
+  "home.projectStats": "Proje istatistikleri",
+  "home.projectsThisWeek": "Bu hafta oluşturulan",
+  "home.projectsThisMonth": "Bu ay oluşturulan",
+  "common.showLink": "Bağlantıyı göster",
+  "common.hideLink": "Bağlantıyı gizle"
 }

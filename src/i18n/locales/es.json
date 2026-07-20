@@ -414,5 +414,10 @@
   "calendar.today": "Hoy",
   "calendar.more": "+{count} más",
   "calendar.emptyTitle": "No se encontraron plazos",
-  "calendar.deadlineOf": "Plazo de {project}"
+  "calendar.deadlineOf": "Plazo de {project}",
+  "home.projectStats": "Estadísticas de proyectos",
+  "home.projectsThisWeek": "Creados esta semana",
+  "home.projectsThisMonth": "Creados este mes",
+  "common.showLink": "Mostrar enlace",
+  "common.hideLink": "Ocultar enlace"
 }
