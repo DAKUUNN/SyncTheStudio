@@ -147,8 +147,7 @@ service cloud.firestore {
         ownerId == request.auth.uid ||
         (
           canAccessProject(projectId) &&
-          userExists(request.auth.uid) &&
-          userDoc(request.auth.uid).data.plan == 'vip'
+          !isViewerOnly(projectId)
         )
       );
     }

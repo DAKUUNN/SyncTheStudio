@@ -595,7 +595,10 @@ export function ProjectFormScreen() {
             </select>
           </div>
         </div>
-        {!isIOS && (
+        {/* Only shown when editing an existing project — most projects never
+            need this, so it stays out of the way during creation and can be
+            added later from the edit screen if it actually comes up. */}
+        {!isIOS && isEdit && (
           <div className="field">
             <label className="field-label">{t("createProject.dawPathLabel")}</label>
             <input

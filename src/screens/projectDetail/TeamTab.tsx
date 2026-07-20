@@ -43,6 +43,13 @@ export function TeamTab({
   const { showToast } = useToast();
   const { t } = useI18n();
 
+  // Owners can always invite; non-owner members can too as long as they're
+  // not viewer-only (matches the relaxed firestore.rules check — invites no
+  // longer require a Premium plan, just non-viewer project access).
+  const myPermission =
+    project.memberPermissions[currentUser?.id ?? ""] === "viewer" ? "viewer" : "editor";
+  const canInvite = isOwner || myPermission === "editor";
+
   const [members, setMembers] = useState<UserModel[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteSearch, setInviteSearch] = useState("");
@@ -193,7 +200,7 @@ export function TeamTab({
           <div className="card-title">
             {t("projectDetail.tabTeam")} ({members.length})
           </div>
-          {isOwner && (
+          {canInvite && (
             <button className="btn btn-primary btn-sm" onClick={() => setInviteOpen(true)}>
               <IconPlus /> {t("team.invite")}
             </button>

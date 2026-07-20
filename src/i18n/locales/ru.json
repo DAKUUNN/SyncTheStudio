@@ -403,5 +403,16 @@
   "e2eUnlock.usePassword": "Использовать пароль",
   "projects.filters": "Фильтры",
   "archive.doneWithSkipped": "Не удалось экспортировать файлов: {count} (ключ заблокирован) — см. «00 ACHTUNG» в папке экспорта",
-  "archive.cleanupSkippedDueToExportGaps": "Удаление из облака пропущено: в экспорте не хватает файлов: {count} — разблокируйте и экспортируйте заново перед удалением"
+  "archive.cleanupSkippedDueToExportGaps": "Удаление из облака пропущено: в экспорте не хватает файлов: {count} — разблокируйте и экспортируйте заново перед удалением",
+  "time.autoTrackTitle": "Автоматический учёт времени",
+  "time.autoTrackDescription": "Учтено автоматически (DAW в фокусе)",
+  "time.autoTrackDescription2": "Запускается и останавливается автоматически, когда твоя DAW (Pro Tools, Logic, Ableton и т. д.) находится на переднем плане.",
+  "time.autoTrackKeywordsLabel": "Свои названия DAW (опционально)",
+  "time.autoTrackKeywordsHint": "напр. Reason, Waveform (через запятую)",
+  "calendar.title": "Календарь",
+  "calendar.subtitle": "Все дедлайны проектов и сроки выполнения задач в одном месте.",
+  "calendar.today": "Сегодня",
+  "calendar.more": "+{count} ещё",
+  "calendar.emptyTitle": "Дедлайны не найдены",
+  "calendar.deadlineOf": "Дедлайн проекта {project}"
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
+import { useIsIOS } from "@/lib/platform";
 import { formatDuration, type ProjectModel, type TimeEntryModel } from "@/models/types";
 import {
   watchTimeEntries,
@@ -11,13 +12,20 @@ import {
   deleteTimeEntry,
   getActiveTimer,
 } from "@/services/timeTrackingService";
+import {
+  getAutoTrackProjectId,
+  setAutoTrackProjectId,
+  getCustomKeywordsRaw,
+  setCustomKeywordsRaw,
+} from "@/services/dawTrackerService";
 import { Modal, formatDateTime } from "@/components/ui";
-import { IconPlay, IconStop, IconPlus, IconTrash, IconTimer } from "@/components/Icons";
+import { IconPlay, IconStop, IconPlus, IconTrash, IconTimer, IconZap } from "@/components/Icons";
 
 export function TimeTab({ project }: { project: ProjectModel }) {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const { t, lang } = useI18n();
+  const isIOS = useIsIOS();
 
   const [entries, setEntries] = useState<TimeEntryModel[]>([]);
   const [activeTimerId, setActiveTimerId] = useState<string | null>(null);
@@ -30,6 +38,10 @@ export function TimeTab({ project }: { project: ProjectModel }) {
   const [manualDate, setManualDate] = useState(
     () => new Date().toISOString().slice(0, 10)
   );
+  const [autoTrackEnabled, setAutoTrackEnabled] = useState(
+    () => getAutoTrackProjectId() === project.id
+  );
+  const [dawKeywords, setDawKeywords] = useState(() => getCustomKeywordsRaw());
 
   useEffect(() => {
     const unsubscribe = watchTimeEntries(project.id, setEntries);
@@ -43,6 +55,35 @@ export function TimeTab({ project }: { project: ProjectModel }) {
     }
     return unsubscribe;
   }, [project.id, currentUser?.id]);
+
+  // The DAW-auto-tracker (App.tsx) can start/stop a timer for this project
+  // in the background — pick that up live via the entries subscription
+  // instead of only reflecting timers started from this screen.
+  useEffect(() => {
+    if (!currentUser) return;
+    const mine = entries.find((e) => e.userId === currentUser.id && !e.endTime);
+    if (mine) {
+      if (activeTimerId !== mine.id) {
+        setActiveTimerId(mine.id);
+        setActiveSince(mine.startTime);
+      }
+    } else if (activeTimerId) {
+      setActiveTimerId(null);
+      setActiveSince(null);
+      setElapsed(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, currentUser?.id]);
+
+  const onToggleAutoTrack = (enabled: boolean) => {
+    setAutoTrackEnabled(enabled);
+    setAutoTrackProjectId(enabled ? project.id : null);
+  };
+
+  const onSaveDawKeywords = (raw: string) => {
+    setDawKeywords(raw);
+    setCustomKeywordsRaw(raw);
+  };
 
   useEffect(() => {
     if (!activeSince) return;
@@ -171,6 +212,49 @@ export function TimeTab({ project }: { project: ProjectModel }) {
           </div>
         </div>
       </div>
+
+      {!isIOS && (
+        <div className="card card-pad" style={{ marginBottom: 16 }}>
+          <div className="row row-between" style={{ marginBottom: autoTrackEnabled ? 10 : 0 }}>
+            <div className="row">
+              <div
+                className="stat-icon"
+                style={{
+                  background: autoTrackEnabled ? "var(--primary-soft)" : "var(--surface-2)",
+                  color: autoTrackEnabled ? "var(--primary)" : "var(--text-muted)",
+                  marginBottom: 0,
+                }}
+              >
+                <IconZap />
+              </div>
+              <div>
+                <div className="text-small" style={{ fontWeight: 700 }}>
+                  {t("time.autoTrackTitle")}
+                </div>
+                <div className="text-xs text-muted">{t("time.autoTrackDescription2")}</div>
+              </div>
+            </div>
+            <label className="checkbox-row" style={{ padding: 0 }}>
+              <input
+                type="checkbox"
+                checked={autoTrackEnabled}
+                onChange={(e) => onToggleAutoTrack(e.target.checked)}
+              />
+            </label>
+          </div>
+          {autoTrackEnabled && (
+            <div className="field" style={{ marginTop: 4 }}>
+              <label className="field-label">{t("time.autoTrackKeywordsLabel")}</label>
+              <input
+                className="input"
+                placeholder={t("time.autoTrackKeywordsHint")}
+                value={dawKeywords}
+                onChange={(e) => onSaveDawKeywords(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card">
         <div className="card-header">

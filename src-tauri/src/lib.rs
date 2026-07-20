@@ -1,3 +1,66 @@
+/// Name of the application currently in the foreground, used by the
+/// desktop DAW-linked auto time-tracker to detect when Pro Tools/Logic/
+/// Ableton/etc. has focus. Returns `None` if it can't be determined
+/// (e.g. no Accessibility/Automation permission granted yet on macOS).
+/// Desktop-only — there is no such concept on iOS.
+#[cfg(desktop)]
+#[tauri::command]
+fn frontmost_app_name() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        let output = std::process::Command::new("osascript")
+            .args([
+                "-e",
+                "tell application \"System Events\" to get name of first process whose frontmost is true",
+            ])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if name.is_empty() {
+            None
+        } else {
+            Some(name)
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let script = r#"
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public class FocusProbe {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+}
+'@
+$hwnd = [FocusProbe]::GetForegroundWindow()
+$procId = 0
+[void][FocusProbe]::GetWindowThreadProcessId($hwnd, [ref]$procId)
+(Get-Process -Id $procId -ErrorAction SilentlyContinue).ProcessName
+"#;
+        let output = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", script])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if name.is_empty() {
+            None
+        } else {
+            Some(name)
+        }
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        None
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // reqwest 0.13 (pulled in by Tauri's own core on iOS, and separately by
@@ -26,7 +89,8 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_process::init())
+        .invoke_handler(tauri::generate_handler![frontmost_app_name]);
 
     #[cfg(target_os = "ios")]
     let builder = builder

@@ -403,5 +403,16 @@
   "e2eUnlock.usePassword": "Usar contraseña",
   "projects.filters": "Filtros",
   "archive.doneWithSkipped": "{count} archivo(s) no se pudieron exportar (clave bloqueada) — ver \"00 ACHTUNG\" en la carpeta exportada",
-  "archive.cleanupSkippedDueToExportGaps": "Eliminación en la nube omitida: faltan {count} archivo(s) en la exportación — desbloquea y vuelve a exportar antes de eliminar"
+  "archive.cleanupSkippedDueToExportGaps": "Eliminación en la nube omitida: faltan {count} archivo(s) en la exportación — desbloquea y vuelve a exportar antes de eliminar",
+  "time.autoTrackTitle": "Registro de tiempo automático",
+  "time.autoTrackDescription": "Registrado automáticamente (DAW en primer plano)",
+  "time.autoTrackDescription2": "Se inicia y se detiene automáticamente cuando tu DAW (Pro Tools, Logic, Ableton, ...) está en primer plano.",
+  "time.autoTrackKeywordsLabel": "Nombres de DAW personalizados (opcional)",
+  "time.autoTrackKeywordsHint": "p. ej. Reason, Waveform (separados por comas)",
+  "calendar.title": "Calendario",
+  "calendar.subtitle": "Todos los plazos de proyectos y tareas pendientes de un vistazo.",
+  "calendar.today": "Hoy",
+  "calendar.more": "+{count} más",
+  "calendar.emptyTitle": "No se encontraron plazos",
+  "calendar.deadlineOf": "Plazo de {project}"
 }

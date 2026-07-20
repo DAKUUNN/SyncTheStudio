@@ -30,6 +30,7 @@ import {
   IconPlus,
   IconExport,
   IconHistory,
+  IconCalendar,
 } from "./Icons";
 
 interface PaletteItem {
@@ -114,6 +115,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
         badge: inboxCount,
       },
       {
+        path: "/calendar",
+        icon: <IconCalendar className="nav-icon" />,
+        label: t("calendar.title"),
+      },
+      {
         path: "/activity",
         icon: <IconHistory className="nav-icon" />,
         label: t("activity.title"),
@@ -154,7 +160,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
   // (iOS HIG's soft cap), everything else — Aktivität, Einstellungen,
   // Admin, Export, plus profile/logout — lives behind "Mehr".
   const mobilePrimaryItems = navItems.slice(0, 4);
-  const mobileMoreItems = [navItems[4], ...bottomNavItems].filter(Boolean) as typeof navItems;
+  const mobileMoreItems = [...navItems.slice(4), ...bottomNavItems].filter(
+    Boolean
+  ) as typeof navItems;
   const mobileMoreActive = mobileMoreItems.some((item) => isActive(item.path));
 
   if (!currentUser) return null;

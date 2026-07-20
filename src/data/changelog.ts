@@ -10,6 +10,22 @@ export interface ChangelogEntry {
 /** Newest first. Add a new entry here with every release. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "5.4.0",
+    date: "2026-07-20",
+    itemsDe: [
+      "Automatische Zeiterfassung gekoppelt an die DAW: Timer startet/stoppt von selbst, sobald Pro Tools/Logic/Ableton & Co. im Vordergrund sind (Desktop)",
+      "Neuer Kalender-Tab: alle Projekt-Deadlines und offenen Aufgaben-Fälligkeiten auf einen Blick",
+      "DAW-Projektpfad-Feld nicht mehr bei der Neuanlage, nur noch beim Bearbeiten eines Projekts",
+      "Team-Mitglieder mit Bearbeitungsrechten können jetzt auch ohne Premium weitere Personen einladen",
+    ],
+    itemsEn: [
+      "Automatic DAW-linked time tracking: the timer starts/stops on its own once Pro Tools/Logic/Ableton & co. are in focus (desktop)",
+      "New calendar tab: all project deadlines and open task due dates at a glance",
+      "DAW project path field no longer shown when creating a project, only when editing one",
+      "Team members with edit access can now invite others without needing Premium",
+    ],
+  },
+  {
     version: "5.3.0",
     date: "2026-07-18",
     itemsDe: [

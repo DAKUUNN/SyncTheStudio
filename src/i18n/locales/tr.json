@@ -403,5 +403,16 @@
   "e2eUnlock.usePassword": "Bunun yerine parola kullan",
   "projects.filters": "Filtreler",
   "archive.doneWithSkipped": "{count} dosya dışa aktarılamadı (anahtar kilitli) — dışa aktarma klasöründeki \"00 ACHTUNG\" dosyasına bakın",
-  "archive.cleanupSkippedDueToExportGaps": "Bulut silme atlandı: dışa aktarmada {count} dosya eksik — silmeden önce kilidi açıp yeniden dışa aktarın"
+  "archive.cleanupSkippedDueToExportGaps": "Bulut silme atlandı: dışa aktarmada {count} dosya eksik — silmeden önce kilidi açıp yeniden dışa aktarın",
+  "time.autoTrackTitle": "Otomatik zaman takibi",
+  "time.autoTrackDescription": "Otomatik kaydedildi (DAW ön planda)",
+  "time.autoTrackDescription2": "DAW'ın (Pro Tools, Logic, Ableton, ...) ön planda olduğu anda otomatik olarak başlar ve durur.",
+  "time.autoTrackKeywordsLabel": "Özel DAW adları (isteğe bağlı)",
+  "time.autoTrackKeywordsHint": "örn. Reason, Waveform (virgülle ayırın)",
+  "calendar.title": "Takvim",
+  "calendar.subtitle": "Tüm proje teslim tarihleri ve açık görev son tarihleri tek bakışta.",
+  "calendar.today": "Bugün",
+  "calendar.more": "+{count} tane daha",
+  "calendar.emptyTitle": "Teslim tarihi bulunamadı",
+  "calendar.deadlineOf": "{project} projesinin teslim tarihi"
 }

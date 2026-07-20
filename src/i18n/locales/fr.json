@@ -403,5 +403,16 @@
   "e2eUnlock.usePassword": "Utiliser le mot de passe",
   "projects.filters": "Filtres",
   "archive.doneWithSkipped": "{count} fichier(s) n'ont pas pu être exportés (clé verrouillée) — voir « 00 ACHTUNG » dans le dossier exporté",
-  "archive.cleanupSkippedDueToExportGaps": "Suppression cloud ignorée : {count} fichier(s) manquent dans l'export — déverrouillez et réexportez avant de supprimer"
+  "archive.cleanupSkippedDueToExportGaps": "Suppression cloud ignorée : {count} fichier(s) manquent dans l'export — déverrouillez et réexportez avant de supprimer",
+  "time.autoTrackTitle": "Suivi du temps automatique",
+  "time.autoTrackDescription": "Enregistré automatiquement (DAW au premier plan)",
+  "time.autoTrackDescription2": "Démarre et s'arrête automatiquement dès que ta DAW (Pro Tools, Logic, Ableton, ...) est au premier plan.",
+  "time.autoTrackKeywordsLabel": "Noms de DAW personnalisés (optionnel)",
+  "time.autoTrackKeywordsHint": "ex. Reason, Waveform (séparés par des virgules)",
+  "calendar.title": "Calendrier",
+  "calendar.subtitle": "Toutes les échéances de projets et de tâches en un coup d'œil.",
+  "calendar.today": "Aujourd'hui",
+  "calendar.more": "+{count} de plus",
+  "calendar.emptyTitle": "Aucune échéance trouvée",
+  "calendar.deadlineOf": "Échéance de {project}"
 }
