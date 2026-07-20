@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
+import { useIsIOS } from "@/lib/platform";
 import type { ProjectModel } from "@/models/types";
 import { getProjects } from "@/services/projectService";
 import {
@@ -21,12 +23,15 @@ import {
   IconClock,
   IconFolder,
   IconDownload,
+  IconWifi,
 } from "@/components/Icons";
 
 export function ExportScreen() {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const { t } = useI18n();
+  const isIOS = useIsIOS();
+  const navigate = useNavigate();
 
   const [projects, setProjects] = useState<ProjectModel[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -342,6 +347,21 @@ export function ExportScreen() {
           </div>
         )}
       </div>
+
+      {!isIOS && (
+        <div className="card card-pad" style={{ marginTop: 20 }}>
+          <div className="section-title">
+            <IconWifi style={{ width: 13, height: 13, verticalAlign: -2 }} />{" "}
+            {t("lanTransfer.title")}
+          </div>
+          <p className="text-small text-muted" style={{ marginBottom: 12 }}>
+            {t("lanTransfer.exportCardDescription")}
+          </p>
+          <button className="btn btn-secondary btn-sm" onClick={() => navigate("/lan-transfer")}>
+            <IconWifi /> {t("lanTransfer.exportCardOpen")}
+          </button>
+        </div>
+      )}
 
       {importSummary && (
         <ConfirmDialog

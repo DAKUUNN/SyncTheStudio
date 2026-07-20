@@ -10,6 +10,16 @@ export interface ChangelogEntry {
 /** Newest first. Add a new entry here with every release. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "5.6.0",
+    date: "2026-07-20",
+    itemsDe: [
+      "Neu: Netzwerk-Transfer — große Dateien/Ordner direkt und verschlüsselt zwischen zwei Geräten im selben WLAN übertragen, ohne Cloud-Umweg (Export → Netzwerk-Transfer)",
+    ],
+    itemsEn: [
+      "New: Network Transfer — send large files/folders directly and encrypted between two devices on the same Wi-Fi, no cloud round trip (Export → Network Transfer)",
+    ],
+  },
+  {
     version: "5.5.0",
     date: "2026-07-20",
     itemsDe: [

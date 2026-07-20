@@ -28,6 +28,7 @@ import { AdminScreen } from "@/screens/AdminScreen";
 import { ExportScreen } from "@/screens/ExportScreen";
 import { ActivityScreen } from "@/screens/ActivityScreen";
 import { CalendarScreen } from "@/screens/CalendarScreen";
+import { LanTransferScreen } from "@/screens/LanTransferScreen";
 import { PublicMasterShareScreen } from "@/screens/public/PublicMasterShareScreen";
 import { PublicCustomerUploadScreen } from "@/screens/public/PublicCustomerUploadScreen";
 
@@ -136,6 +137,7 @@ function AuthGate() {
         <Route path="/export" element={<ExportScreen />} />
         <Route path="/activity" element={<ActivityScreen />} />
         <Route path="/calendar" element={<CalendarScreen />} />
+        <Route path="/lan-transfer" element={<LanTransferScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppLayout>

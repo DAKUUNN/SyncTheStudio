@@ -1,3 +1,6 @@
+#[cfg(desktop)]
+mod lan_transfer;
+
 /// Name of the application currently in the foreground, used by the
 /// desktop DAW-linked auto time-tracker to detect when Pro Tools/Logic/
 /// Ableton/etc. has focus. Returns `None` if it can't be determined
@@ -90,7 +93,14 @@ pub fn run() {
     let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .invoke_handler(tauri::generate_handler![frontmost_app_name]);
+        .manage(lan_transfer::LanTransferState::default())
+        .invoke_handler(tauri::generate_handler![
+            frontmost_app_name,
+            lan_transfer::lan_transfer_local_ip,
+            lan_transfer::lan_transfer_send,
+            lan_transfer::lan_transfer_receive,
+            lan_transfer::lan_transfer_cancel
+        ]);
 
     #[cfg(target_os = "ios")]
     let builder = builder
