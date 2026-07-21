@@ -26,7 +26,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { auth, db, functions } from "@/firebase";
+import { auth, db, getFirebaseFunctions } from "@/firebase";
 import { userFromMap, userFromDocument, type UserModel } from "@/models/types";
 import { getCurrentLanguageCode } from "@/i18n";
 import { getOrCreateUserContentKey } from "./keyManagementService";
@@ -478,7 +478,7 @@ export async function adminResetUserPassword(
   newPassword: string
 ): Promise<boolean> {
   try {
-    await httpsCallable(functions, "adminResetUserPassword")({ userId, newPassword });
+    await httpsCallable(await getFirebaseFunctions(), "adminResetUserPassword")({ userId, newPassword });
     return true;
   } catch {
     return false;

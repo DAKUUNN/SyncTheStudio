@@ -6,7 +6,7 @@ import {
 } from "firebase/auth";
 import { initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getFunctions } from "firebase/functions";
+import type { Functions } from "firebase/functions";
 
 // Same Firebase project as the original SyncTheStudio app.
 const firebaseConfig = {
@@ -48,4 +48,16 @@ export const db = initializeFirestore(app, {
 });
 
 export const storage = getStorage(app);
-export const functions = getFunctions(app);
+
+// The Cloud Functions SDK is only needed by a couple of admin/chat call
+// sites — every other page (including the public master/upload pages)
+// transitively imports this module just for auth/db/storage, so eagerly
+// initializing `functions` here pulled its whole client SDK into every
+// bundle. Loaded on first actual use instead.
+let functionsInstance: Promise<Functions> | null = null;
+export function getFirebaseFunctions(): Promise<Functions> {
+  if (!functionsInstance) {
+    functionsInstance = import("firebase/functions").then(({ getFunctions }) => getFunctions(app));
+  }
+  return functionsInstance;
+}

@@ -41,6 +41,27 @@ export default defineConfig({
         master: fileURLToPath(new URL("./master.html", import.meta.url)),
         upload: fileURLToPath(new URL("./upload.html", import.meta.url)),
       },
+      output: {
+        manualChunks(id) {
+          // recharts (+ its d3/react-smooth/lodash-ish dependency tree) is
+          // only ever reachable via the lazy-loaded admin dashboard, but
+          // Rollup's default chunking sometimes folds it into whichever
+          // shared vendor chunk is largest — which was the public-links
+          // bundle the master/upload customer pages also depend on. Forcing
+          // it into its own chunk keeps that ~500KB out of every page that
+          // isn't /admin.
+          if (
+            id.includes("node_modules/recharts") ||
+            id.includes("node_modules/d3-") ||
+            id.includes("node_modules/victory-vendor") ||
+            id.includes("node_modules/recharts-scale") ||
+            id.includes("node_modules/decimal.js-light") ||
+            id.includes("node_modules/react-smooth")
+          ) {
+            return "vendor-charts";
+          }
+        },
+      },
     },
   },
 });

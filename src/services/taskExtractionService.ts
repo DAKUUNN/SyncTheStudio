@@ -1,5 +1,5 @@
 import { httpsCallable } from "firebase/functions";
-import { functions } from "@/firebase";
+import { getFirebaseFunctions } from "@/firebase";
 
 /** Port of task_extraction_service.dart — cloud function + local heuristics. */
 
@@ -118,7 +118,7 @@ export async function extractTasksFromMessage(
   if (!trimmed) return [];
 
   try {
-    const callable = httpsCallable(functions, "extractTasksFromMessage");
+    const callable = httpsCallable(await getFirebaseFunctions(), "extractTasksFromMessage");
     const result = await callable({ message: trimmed, languageCode });
     const parsed = extractRawSuggestions(result.data)
       .map(suggestionFromMap)

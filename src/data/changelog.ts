@@ -10,6 +10,20 @@ export interface ChangelogEntry {
 /** Newest first. Add a new entry here with every release. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "5.7.1",
+    date: "2026-07-21",
+    itemsDe: [
+      "Performance: Admin-Statistik-Bibliothek (~390KB) lädt nicht mehr versehentlich auf Kunden-Seiten mit",
+      "Performance: Cloud-Functions-Anbindung lädt jetzt erst bei Bedarf statt auf jeder Seite",
+      "Performance: schnellerer Verbindungsaufbau zu Firebase durch Preconnect-Hints",
+    ],
+    itemsEn: [
+      "Performance: the admin statistics library (~390KB) no longer accidentally loads on customer pages",
+      "Performance: the Cloud Functions connection now loads on demand instead of on every page",
+      "Performance: faster Firebase connection setup via preconnect hints",
+    ],
+  },
+  {
     version: "5.7.0",
     date: "2026-07-21",
     itemsDe: [
