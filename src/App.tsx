@@ -9,6 +9,7 @@ import { ToastStack } from "@/components/ui";
 import { UpdateNotifier } from "@/components/UpdateNotifier";
 import { WhatsNewModal } from "@/components/WhatsNewModal";
 import { AppContextMenu } from "@/components/AppContextMenu";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RecoveryKeyModals } from "@/components/RecoveryKeyModals";
 import { DawAutoTracker } from "@/components/DawAutoTracker";
 import { PushNavigationHandler } from "@/components/PushNavigationHandler";
@@ -175,24 +176,26 @@ function RouterRoot() {
 
 export default function App() {
   return (
-    <I18nProvider>
-      <ThemeProvider>
-        <ToastProvider>
-          <AuthProvider>
-            <HashRouter>
-              <Suspense fallback={<SplashScreen />}>
-                <RouterRoot />
-              </Suspense>
-            </HashRouter>
-            <ToastStack />
-            <UpdateNotifier />
-            <RecoveryKeyModals />
-            <DawAutoTracker />
-            <WhatsNewModal />
-            <AppContextMenu />
-          </AuthProvider>
-        </ToastProvider>
-      </ThemeProvider>
-    </I18nProvider>
+    <ErrorBoundary>
+      <I18nProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <HashRouter>
+                <Suspense fallback={<SplashScreen />}>
+                  <RouterRoot />
+                </Suspense>
+              </HashRouter>
+              <ToastStack />
+              <UpdateNotifier />
+              <RecoveryKeyModals />
+              <DawAutoTracker />
+              <WhatsNewModal />
+              <AppContextMenu />
+            </AuthProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </I18nProvider>
+    </ErrorBoundary>
   );
 }
