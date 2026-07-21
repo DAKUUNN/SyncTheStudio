@@ -10,10 +10,11 @@
 //! PIN via PBKDF2, so a curious device sniffing the LAN sees only noise.
 
 use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream, UdpSocket};
+use std::net::{TcpListener, TcpStream, ToSocketAddrs, UdpSocket};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
@@ -30,6 +31,13 @@ const CHUNK_SIZE: usize = 512 * 1024;
 const HANDSHAKE_SALT: &[u8] = b"SyncTheStudioLAN-v1";
 const PBKDF2_ROUNDS: u32 = 100_000;
 const MAX_FRAME_LEN: usize = 64 * 1024 * 1024;
+/// Applied to every stream read/write once connected — without it a peer
+/// that stalls mid-transfer (dropped Wi-Fi, frozen app) blocks the receiving
+/// thread in a syscall forever; Cancel can't interrupt a blocked read, so
+/// the bound here is what actually makes Cancel effective.
+const IO_TIMEOUT: Duration = Duration::from_secs(30);
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const ACCEPT_POLL_INTERVAL: Duration = Duration::from_millis(200);
 
 #[derive(Default)]
 pub struct LanTransferState {
@@ -52,6 +60,63 @@ struct ProgressPayload {
     bytes_done: u64,
     bytes_total: u64,
     current_file: String,
+}
+
+/// Rejects a manifest-supplied relative path unless every component is a
+/// plain file/dir name — no absolute paths, `..`, drive letters, or root
+/// prefixes. The manifest comes from the network peer, so without this a
+/// malicious/compromised sender could point `dest_root.join(path)` anywhere
+/// on the receiver's filesystem (PathBuf::join discards the base entirely
+/// for an absolute `path`, and preserves `..` components otherwise).
+fn safe_relative_path(dest_root: &Path, candidate: &str) -> Result<PathBuf, String> {
+    const ERR: &str = "Ungültiger Dateipfad im Manifest";
+    if candidate.is_empty()
+        || candidate.starts_with('/')
+        || candidate.contains(':')
+        || candidate.contains('\\')
+    {
+        return Err(ERR.to_string());
+    }
+    let mut resolved = dest_root.to_path_buf();
+    let mut pushed_any = false;
+    for part in candidate.split('/') {
+        match part {
+            "" | "." => continue,
+            ".." => return Err(ERR.to_string()),
+            _ => {
+                resolved.push(part);
+                pushed_any = true;
+            }
+        }
+    }
+    if !pushed_any {
+        return Err(ERR.to_string());
+    }
+    Ok(resolved)
+}
+
+/// Polls `accept()` non-blockingly so a Cancel click while waiting for a
+/// peer is honored within ACCEPT_POLL_INTERVAL instead of blocking forever.
+fn accept_with_cancel(
+    listener: &TcpListener,
+    cancel: &Arc<AtomicBool>,
+) -> Result<TcpStream, String> {
+    listener.set_nonblocking(true).map_err(|e| e.to_string())?;
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            return Err("Abgebrochen".to_string());
+        }
+        match listener.accept() {
+            Ok((stream, _)) => {
+                stream.set_nonblocking(false).map_err(|e| e.to_string())?;
+                return Ok(stream);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                std::thread::sleep(ACCEPT_POLL_INTERVAL);
+            }
+            Err(e) => return Err(e.to_string()),
+        }
+    }
 }
 
 fn derive_key(pin: &str) -> [u8; 32] {
@@ -110,7 +175,13 @@ fn recv_encrypted(
     cipher
         .decrypt(Nonce::from_slice(nonce_bytes), Payload { msg: ciphertext, aad: &aad })
         .map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, "decrypt failed (falsche PIN?)")
+            // By the time this runs the PIN has already been proven correct
+            // via the HMAC handshake — a failure here means a corrupted or
+            // desynced frame, not a wrong PIN.
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Übertragung beschädigt oder unterbrochen",
+            )
         })
 }
 
@@ -168,8 +239,10 @@ pub fn run_send(
 
     let listener = TcpListener::bind(("0.0.0.0", port)).map_err(|e| e.to_string())?;
     let _ = app.emit("lan-transfer://waiting", ());
-    let (mut stream, _) = listener.accept().map_err(|e| e.to_string())?;
+    let mut stream = accept_with_cancel(&listener, &cancel)?;
     stream.set_nodelay(true).ok();
+    stream.set_read_timeout(Some(IO_TIMEOUT)).ok();
+    stream.set_write_timeout(Some(IO_TIMEOUT)).ok();
 
     let key_bytes = derive_key(pin);
     let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
@@ -181,9 +254,11 @@ pub fn run_send(
 
     let mut mac = <HmacSha256 as Mac>::new_from_slice(&key_bytes).expect("32-byte hmac key");
     mac.update(&challenge);
-    let expected = mac.finalize().into_bytes();
     let response = read_frame(&mut stream).map_err(|e| e.to_string())?;
-    if response.as_slice() != expected.as_slice() {
+    // verify_slice compares in constant time (via the `subtle` crate under
+    // the hood) — a plain `!=` here would leak how many leading bytes of
+    // the peer's response match via response timing.
+    if mac.verify_slice(&response).is_err() {
         let _ = write_frame(&mut stream, &[0]);
         return Err("Falsche PIN".to_string());
     }
@@ -233,8 +308,15 @@ pub fn run_receive(
     save_dir: &str,
     cancel: Arc<AtomicBool>,
 ) -> Result<String, String> {
-    let mut stream = TcpStream::connect((host, port)).map_err(|e| e.to_string())?;
+    let addr = (host, port)
+        .to_socket_addrs()
+        .map_err(|e| e.to_string())?
+        .next()
+        .ok_or_else(|| "Ungültige Adresse".to_string())?;
+    let mut stream = TcpStream::connect_timeout(&addr, CONNECT_TIMEOUT).map_err(|e| e.to_string())?;
     stream.set_nodelay(true).ok();
+    stream.set_read_timeout(Some(IO_TIMEOUT)).ok();
+    stream.set_write_timeout(Some(IO_TIMEOUT)).ok();
 
     let key_bytes = derive_key(pin);
     let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
@@ -265,7 +347,7 @@ pub fn run_receive(
         if cancel.load(Ordering::Relaxed) {
             return Err("Abgebrochen".to_string());
         }
-        let dest_path = dest_root.join(&entry.path);
+        let dest_path = safe_relative_path(&dest_root, &entry.path)?;
         if let Some(parent) = dest_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
@@ -276,10 +358,14 @@ pub fn run_receive(
                 return Err("Abgebrochen".to_string());
             }
             let chunk = recv_encrypted(&mut stream, &cipher, chunk_index).map_err(|e| e.to_string())?;
+            let chunk_len = chunk.len() as u64;
+            if chunk_len > remaining {
+                return Err("Ungültige Chunk-Größe (Protokollfehler)".to_string());
+            }
             file.write_all(&chunk).map_err(|e| e.to_string())?;
             chunk_index += 1;
-            remaining -= chunk.len() as u64;
-            done += chunk.len() as u64;
+            remaining -= chunk_len;
+            done += chunk_len;
             let _ = app.emit(
                 "lan-transfer://progress",
                 ProgressPayload { bytes_done: done, bytes_total: total, current_file: entry.path.clone() },
@@ -335,6 +421,30 @@ pub fn lan_transfer_cancel(state: tauri::State<'_, LanTransferState>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A malicious/compromised sender controls `entry.path` in the
+    /// manifest — safe_relative_path must keep every candidate inside
+    /// dest_root no matter what the peer sends.
+    #[test]
+    fn safe_relative_path_rejects_traversal() {
+        let dest_root = PathBuf::from("/tmp/sts-lan-dest");
+
+        assert!(safe_relative_path(&dest_root, "song.wav").is_ok());
+        assert!(safe_relative_path(&dest_root, "sub/song.wav").is_ok());
+
+        assert!(safe_relative_path(&dest_root, "../evil.txt").is_err());
+        assert!(safe_relative_path(&dest_root, "../../etc/passwd").is_err());
+        assert!(safe_relative_path(&dest_root, "sub/../../evil.txt").is_err());
+        assert!(safe_relative_path(&dest_root, "/etc/passwd").is_err());
+        assert!(safe_relative_path(&dest_root, "C:/Windows/evil.dll").is_err());
+        assert!(safe_relative_path(&dest_root, "C:\\Windows\\evil.dll").is_err());
+        assert!(safe_relative_path(&dest_root, "").is_err());
+        assert!(safe_relative_path(&dest_root, ".").is_err());
+
+        // Every accepted path must actually resolve inside dest_root.
+        let resolved = safe_relative_path(&dest_root, "sub/song.wav").unwrap();
+        assert!(resolved.starts_with(&dest_root));
+    }
 
     /// Round-trips a small directory over a real TCP loopback connection —
     /// sender and receiver run on separate threads exactly like the two

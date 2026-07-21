@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/stores/authStore";
 import { ThemeProvider, useTheme } from "@/stores/themeStore";
@@ -12,25 +12,40 @@ import { AppContextMenu } from "@/components/AppContextMenu";
 import { RecoveryKeyModals } from "@/components/RecoveryKeyModals";
 import { DawAutoTracker } from "@/components/DawAutoTracker";
 import { PushNavigationHandler } from "@/components/PushNavigationHandler";
-import { LoginScreen } from "@/screens/LoginScreen";
-import { RegisterScreen } from "@/screens/RegisterScreen";
-import { DashboardScreen } from "@/screens/DashboardScreen";
-import { ProjectListScreen } from "@/screens/ProjectListScreen";
-import { ProjectFormScreen } from "@/screens/ProjectFormScreen";
-import { ProjectDetailScreen } from "@/screens/projectDetail/ProjectDetailScreen";
-import { CustomersScreen } from "@/screens/CustomersScreen";
-import { InboxScreen } from "@/screens/InboxScreen";
-import { SearchScreen } from "@/screens/SearchScreen";
-import { NotificationsScreen } from "@/screens/NotificationsScreen";
-import { SettingsScreen } from "@/screens/SettingsScreen";
-import { ProfileScreen } from "@/screens/ProfileScreen";
-import { AdminScreen } from "@/screens/AdminScreen";
-import { ExportScreen } from "@/screens/ExportScreen";
-import { ActivityScreen } from "@/screens/ActivityScreen";
-import { CalendarScreen } from "@/screens/CalendarScreen";
-import { LanTransferScreen } from "@/screens/LanTransferScreen";
-import { PublicMasterShareScreen } from "@/screens/public/PublicMasterShareScreen";
-import { PublicCustomerUploadScreen } from "@/screens/public/PublicCustomerUploadScreen";
+
+// Route-level code splitting: each screen becomes its own chunk fetched on
+// first visit instead of all 20 screens loading eagerly in the main bundle
+// on startup (desktop cold-start and the syncthestudio.de web build both
+// pay that cost up front otherwise).
+const LoginScreen = lazy(() => import("@/screens/LoginScreen").then((m) => ({ default: m.LoginScreen })));
+const RegisterScreen = lazy(() => import("@/screens/RegisterScreen").then((m) => ({ default: m.RegisterScreen })));
+const DashboardScreen = lazy(() => import("@/screens/DashboardScreen").then((m) => ({ default: m.DashboardScreen })));
+const ProjectListScreen = lazy(() => import("@/screens/ProjectListScreen").then((m) => ({ default: m.ProjectListScreen })));
+const ProjectFormScreen = lazy(() => import("@/screens/ProjectFormScreen").then((m) => ({ default: m.ProjectFormScreen })));
+const ProjectDetailScreen = lazy(() =>
+  import("@/screens/projectDetail/ProjectDetailScreen").then((m) => ({ default: m.ProjectDetailScreen }))
+);
+const CustomersScreen = lazy(() => import("@/screens/CustomersScreen").then((m) => ({ default: m.CustomersScreen })));
+const InboxScreen = lazy(() => import("@/screens/InboxScreen").then((m) => ({ default: m.InboxScreen })));
+const SearchScreen = lazy(() => import("@/screens/SearchScreen").then((m) => ({ default: m.SearchScreen })));
+const NotificationsScreen = lazy(() =>
+  import("@/screens/NotificationsScreen").then((m) => ({ default: m.NotificationsScreen }))
+);
+const SettingsScreen = lazy(() => import("@/screens/SettingsScreen").then((m) => ({ default: m.SettingsScreen })));
+const ProfileScreen = lazy(() => import("@/screens/ProfileScreen").then((m) => ({ default: m.ProfileScreen })));
+const AdminScreen = lazy(() => import("@/screens/AdminScreen").then((m) => ({ default: m.AdminScreen })));
+const ExportScreen = lazy(() => import("@/screens/ExportScreen").then((m) => ({ default: m.ExportScreen })));
+const ActivityScreen = lazy(() => import("@/screens/ActivityScreen").then((m) => ({ default: m.ActivityScreen })));
+const CalendarScreen = lazy(() => import("@/screens/CalendarScreen").then((m) => ({ default: m.CalendarScreen })));
+const LanTransferScreen = lazy(() =>
+  import("@/screens/LanTransferScreen").then((m) => ({ default: m.LanTransferScreen }))
+);
+const PublicMasterShareScreen = lazy(() =>
+  import("@/screens/public/PublicMasterShareScreen").then((m) => ({ default: m.PublicMasterShareScreen }))
+);
+const PublicCustomerUploadScreen = lazy(() =>
+  import("@/screens/public/PublicCustomerUploadScreen").then((m) => ({ default: m.PublicCustomerUploadScreen }))
+);
 
 function SplashScreen() {
   const { t } = useI18n();
@@ -165,7 +180,9 @@ export default function App() {
         <ToastProvider>
           <AuthProvider>
             <HashRouter>
-              <RouterRoot />
+              <Suspense fallback={<SplashScreen />}>
+                <RouterRoot />
+              </Suspense>
             </HashRouter>
             <ToastStack />
             <UpdateNotifier />

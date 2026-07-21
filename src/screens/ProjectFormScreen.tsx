@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import { readFile } from "@tauri-apps/plugin-fs";
+import { pickFiles } from "@/lib/filePicker";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
@@ -234,17 +233,17 @@ export function ProjectFormScreen() {
   };
 
   const pickReferenceFile = async () => {
-    const selected = await openFileDialog({
+    const selected = await pickFiles({
       multiple: false,
-      filters: [
+      accept: "audio/*",
+      dialogFilters: [
         { name: "Audio", extensions: ["mp3", "wav", "aiff", "aif", "flac", "m4a", "ogg"] },
       ],
     });
-    if (!selected || typeof selected !== "string") return;
-    const bytes = await readFile(selected);
-    const fileName = selected.split(/[\\/]/).pop() ?? "reference";
-    setReferenceFileLocal({ bytes, name: fileName });
-    setReferenceFileName(fileName);
+    const file = selected?.[0];
+    if (!file) return;
+    setReferenceFileLocal(file);
+    setReferenceFileName(file.name);
   };
 
   const onSubmit = async () => {

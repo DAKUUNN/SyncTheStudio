@@ -4,8 +4,38 @@
  *  No-ops (never throws) outside the Tauri runtime. */
 import { useEffect, useState } from "react";
 
-function isTauriRuntime(): boolean {
+export function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+/** True in the Tauri desktop/iOS apps, false in a plain browser tab
+ *  (e.g. the syncthestudio.de web build). Synchronous — Tauri injects its
+ *  runtime marker before any app JS runs, unlike the iOS platform check
+ *  below which needs an async plugin call. */
+export function useIsTauri(): boolean {
+  return isTauriRuntime();
+}
+
+/** True only for the Tauri desktop app (macOS/Windows) — false on iOS and
+ *  false in a plain browser tab. Use this (not `!useIsIOS()` alone) to gate
+ *  features that need real native capabilities unavailable to both iOS's
+ *  sandbox and the browser (LAN transfer, DAW process detection, arbitrary
+ *  local file paths). */
+export function useIsDesktopTauri(): boolean {
+  const isTauri = useIsTauri();
+  const isIOSNow = useIsIOS();
+  return isTauri && !isIOSNow;
+}
+
+/** Opens a URL in the system's default browser (Tauri) or a new tab
+ *  (plain browser) — the opener plugin only exists under Tauri. */
+export async function openExternalUrl(url: string): Promise<void> {
+  if (isTauriRuntime()) {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(url);
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
 }
 
 let cachedIsIOS: boolean | null = null;

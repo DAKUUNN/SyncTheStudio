@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/stores/authStore";
-import { useIsIOS } from "@/lib/platform";
+import { useIsIOS, useIsDesktopTauri } from "@/lib/platform";
 import { startDesktopPushWatcher, stopDesktopPushWatcher } from "@/services/pushNotificationWatcher";
 
 /** Mounted once globally (see App.tsx). Makes tapping/clicking a push
@@ -13,6 +13,7 @@ import { startDesktopPushWatcher, stopDesktopPushWatcher } from "@/services/push
 export function PushNavigationHandler() {
   const { currentUser } = useAuth();
   const isIOS = useIsIOS();
+  const isDesktopTauri = useIsDesktopTauri();
   const navigate = useNavigate();
 
   const goTo = (projectId: string, screen: string | null) => {
@@ -38,10 +39,12 @@ export function PushNavigationHandler() {
       return () => unregister?.();
     }
 
-    startDesktopPushWatcher(currentUser.id, goTo);
-    return () => stopDesktopPushWatcher();
+    if (isDesktopTauri) {
+      startDesktopPushWatcher(currentUser.id, goTo);
+      return () => stopDesktopPushWatcher();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.id, isIOS]);
+  }, [currentUser?.id, isIOS, isDesktopTauri]);
 
   return null;
 }

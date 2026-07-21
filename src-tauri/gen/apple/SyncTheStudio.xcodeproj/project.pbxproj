@@ -27,6 +27,7 @@
 /* Begin PBXFileReference section */
 		03C62586391B2548A4657225 /* SyncTheStudio_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SyncTheStudio_iOS.entitlements; sourceTree = "<group>"; };
 		06399BC9A6C3DC9A1B37BA13 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		253E1E71A2BC95C17E25EB26 /* lan_transfer.rs */ = {isa = PBXFileReference; path = lan_transfer.rs; sourceTree = "<group>"; };
 		365CD234F9A3D8798AB1E7C3 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
 		3F857C506CC64473EF4105CA /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		5FE239A05EF3263E54C33658 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -127,6 +128,7 @@
 		62EFE9D3ED232DB29835BAA2 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				253E1E71A2BC95C17E25EB26 /* lan_transfer.rs */,
 				84007164C7B4AA715E514002 /* lib.rs */,
 				365CD234F9A3D8798AB1E7C3 /* main.rs */,
 			);
@@ -157,18 +159,18 @@
 			path = Sources;
 			sourceTree = "<group>";
 		};
-		"TEMP_28F02111-6035-465E-8C03-4BBF8DACD68A" /* x86_64 */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = x86_64;
-			sourceTree = "<group>";
-		};
-		"TEMP_4346864A-ACFC-41F8-BFB5-A662F4BE3C09" /* arm64 */ = {
+		"TEMP_517F030D-0524-48EE-A0B0-D94808484DB7" /* arm64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			path = arm64;
+			sourceTree = "<group>";
+		};
+		"TEMP_83FC4424-CC0A-43A9-82AC-5957B5CACDCA" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

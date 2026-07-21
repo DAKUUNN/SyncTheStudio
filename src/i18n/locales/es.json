@@ -452,5 +452,10 @@
   "lanTransfer.receiveDoneAt": "Listo — guardado en: {path}",
   "lanTransfer.exportCardDescription": "Envía archivos grandes directamente entre dos dispositivos en la misma red Wi-Fi.",
   "lanTransfer.exportCardOpen": "Abrir transferencia por red",
-  "lanTransfer.newPin": "Nuevo PIN"
+  "lanTransfer.newPin": "Nuevo PIN",
+  "tasks.voiceNote.modelLoading": "Cargando modelo… {percent}%",
+  "tasks.voiceNote.transcribe": "Transcribir",
+  "tasks.voiceNote.transcribeEmpty": "No se detectó voz.",
+  "tasks.voiceNote.transcribeFailed": "Error al transcribir.",
+  "tasks.voiceNote.transcribing": "Transcribiendo…"
 }

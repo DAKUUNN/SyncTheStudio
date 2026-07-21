@@ -10,6 +10,24 @@ export interface ChangelogEntry {
 /** Newest first. Add a new entry here with every release. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "5.7.0",
+    date: "2026-07-21",
+    itemsDe: [
+      "Neu: Master-Player mit Spektrogramm-Ansicht und echtem LUFS-/Peak-Meter (BS.1770) neben der Waveform",
+      "Neu: Sprachnotizen können per Klick automatisch transkribiert werden — läuft komplett auf dem Gerät (Whisper), kein Audio verlässt den Rechner",
+      "Neu: SyncTheStudio läuft jetzt auch direkt im Browser (syncthestudio.de) — ohne Installation nutzbar",
+      "Sicherheit: mehrere Härtungen am Netzwerk-Transfer (Dateipfad-Prüfung, Verbindungs-Timeouts, sicherer PIN-Abgleich)",
+      "Performance: App startet spürbar schneller — Startbundle um über 80% verkleinert",
+    ],
+    itemsEn: [
+      "New: master player now has a spectrogram view plus a real LUFS/peak meter (BS.1770) alongside the waveform",
+      "New: voice notes can be transcribed with one click — runs fully on-device (Whisper), no audio ever leaves the machine",
+      "New: SyncTheStudio now also runs directly in the browser (syncthestudio.de) — no install required",
+      "Security: several hardening fixes to the network transfer (file-path validation, connection timeouts, safer PIN check)",
+      "Performance: noticeably faster app startup — startup bundle cut by over 80%",
+    ],
+  },
+  {
     version: "5.6.0",
     date: "2026-07-20",
     itemsDe: [

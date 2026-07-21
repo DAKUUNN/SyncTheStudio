@@ -436,6 +436,12 @@ export const IconChart = (p: IconProps) => (
   </Base>
 );
 
+export const IconActivity = (p: IconProps) => (
+  <Base {...p}>
+    <polyline points="2 12 7 12 10 20 14 4 17 12 22 12" />
+  </Base>
+);
+
 export const IconExport = (p: IconProps) => (
   <Base {...p}>
     <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />

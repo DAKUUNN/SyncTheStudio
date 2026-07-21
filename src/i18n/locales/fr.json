@@ -452,5 +452,10 @@
   "lanTransfer.receiveDoneAt": "Terminé — enregistré dans : {path}",
   "lanTransfer.exportCardDescription": "Envoie de gros fichiers directement entre deux appareils sur le même Wi-Fi.",
   "lanTransfer.exportCardOpen": "Ouvrir le transfert réseau",
-  "lanTransfer.newPin": "Nouveau PIN"
+  "lanTransfer.newPin": "Nouveau PIN",
+  "tasks.voiceNote.modelLoading": "Chargement du modèle… {percent}%",
+  "tasks.voiceNote.transcribe": "Transcrire",
+  "tasks.voiceNote.transcribeEmpty": "Aucune parole détectée.",
+  "tasks.voiceNote.transcribeFailed": "Échec de la transcription.",
+  "tasks.voiceNote.transcribing": "Transcription en cours…"
 }

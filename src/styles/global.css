@@ -747,6 +747,53 @@ input[type="range"] {
 .list-row:hover { background: var(--surface-2); }
 .list-row.clickable { cursor: pointer; }
 
+/* ── Voice-note transcription (Tasks tab) ──────────────────────── */
+
+.voice-transcribe-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.voice-transcribe-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.voice-transcribe-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.voice-transcript {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 340px;
+  margin-top: 5px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.voice-transcript svg {
+  color: var(--accent);
+}
+
 /* ── Avatars ────────────────────────────────────────────────── */
 
 .avatar {

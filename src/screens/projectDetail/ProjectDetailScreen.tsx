@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl } from "@/lib/platform";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
@@ -318,7 +318,7 @@ function InfoTab({
 
   const openExternal = async (url: string) => {
     try {
-      await openUrl(url);
+      await openExternalUrl(url);
     } catch {
       showToast(t("common.error"), "error");
     }

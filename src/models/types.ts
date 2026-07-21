@@ -351,6 +351,10 @@ export interface TaskModel {
   createdBy: string | null;
   subtasks: Subtask[];
   order: number;
+  /** Speech-to-text transcript of a voice-note description. Encrypted with
+   *  the project file key (same envelope format as encryptText) when the
+   *  voice note itself is zero-knowledge; plain text for legacy notes. */
+  voiceNoteTranscript: string | null;
 }
 
 export function taskFromMap(data: DocData): TaskModel {
@@ -375,6 +379,7 @@ export function taskFromMap(data: DocData): TaskModel {
     createdBy: (data.createdBy as string | undefined) ?? null,
     subtasks,
     order: Number(data.order ?? 0),
+    voiceNoteTranscript: (data.voiceNoteTranscript as string | undefined) ?? null,
   };
 }
 

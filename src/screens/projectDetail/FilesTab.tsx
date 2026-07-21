@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { open as openFileDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { readFile, writeFile } from "@tauri-apps/plugin-fs";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
+import { pickFiles, saveBytes, type PickedFile } from "@/lib/filePicker";
+import { openExternalUrl, isTauriRuntime } from "@/lib/platform";
 import { fetchBytes } from "@/lib/download";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
@@ -117,7 +117,7 @@ export function FilesTab({
   const [uploadPasswordModalOpen, setUploadPasswordModalOpen] = useState(false);
   const [uploadPassword, setUploadPassword] = useState("");
   const [masterUploading, setMasterUploading] = useState(false);
-  const [pendingMasterFile, setPendingMasterFile] = useState<string | null>(null);
+  const [pendingMasterFile, setPendingMasterFile] = useState<PickedFile | null>(null);
   const [masterVersionName, setMasterVersionName] = useState("");
 
   const isViewer = currentUser ? isProjectViewer(project, currentUser.id) : false;
@@ -254,15 +254,8 @@ export function FilesTab({
   };
 
   const pickAndUpload = async () => {
-    const selected = await openFileDialog({ multiple: true });
-    if (!selected) return;
-    const paths = Array.isArray(selected) ? selected : [selected];
-    const files = [];
-    for (const path of paths) {
-      const bytes = await readFile(path);
-      files.push({ bytes, name: path.split(/[\\/]/).pop() ?? "file" });
-    }
-    await uploadFiles(files);
+    const files = await pickFiles({ multiple: true });
+    if (files) await uploadFiles(files);
   };
 
   const onDropFiles = async (e: DragEvent) => {
@@ -281,17 +274,13 @@ export function FilesTab({
   const onOpenAttachment = async (url: string) => {
     const meta = project.attachmentMeta[url];
     if (!meta) {
-      await openUrl(url);
+      await openExternalUrl(url);
       return;
     }
     try {
       if (!projectFileKey) throw new Error(t("e2e.keyLocked"));
       const plain = await decryptBytes(await fetchBytes(url), meta.iv, projectFileKey);
-      const target = await saveDialog({
-        defaultPath: project.attachmentNames[url] ?? url.split("/").pop() ?? "datei",
-      });
-      if (!target) return;
-      await writeFile(target, plain);
+      await saveBytes(plain, project.attachmentNames[url] ?? url.split("/").pop() ?? "datei");
       showToast(t("masters.downloaded"), "success");
     } catch (e) {
       showToast((e as Error).message, "error");
@@ -332,16 +321,18 @@ export function FilesTab({
       showToast(premiumStorageMessage(), "warning");
       return;
     }
-    const selected = await openFileDialog({
+    const selected = await pickFiles({
       multiple: false,
-      filters: [
+      accept: "audio/*",
+      dialogFilters: [
         { name: "Audio", extensions: ["mp3", "wav", "aiff", "aif", "flac", "m4a", "ogg"] },
       ],
     });
-    if (!selected || typeof selected !== "string") return;
+    const file = selected?.[0];
+    if (!file) return;
     // window.prompt is not supported in Tauri WebViews — use a modal instead.
     setMasterVersionName(`Master v${masters.length + 1}`);
-    setPendingMasterFile(selected);
+    setPendingMasterFile(file);
   };
 
   const onUploadMaster = async () => {
@@ -351,13 +342,11 @@ export function FilesTab({
     setPendingMasterFile(null);
     setMasterUploading(true);
     try {
-      const bytes = await readFile(selected);
-      const fileName = selected.split(/[\\/]/).pop() ?? "master";
       await uploadMasterVersion({
         project,
         userId: currentUser.id,
-        fileBytes: bytes,
-        fileName,
+        fileBytes: selected.bytes,
+        fileName: selected.name,
         versionName,
         projectFileKey,
       });
@@ -377,9 +366,7 @@ export function FilesTab({
       const plain = master.encrypted
         ? await decryptBytes(encrypted, master.iv, masterKey!)
         : encrypted;
-      const target = await saveDialog({ defaultPath: master.originalFileName });
-      if (!target) return;
-      await writeFile(target, plain);
+      await saveBytes(plain, master.originalFileName);
       showToast(t("masters.downloaded"), "success");
     } catch (e) {
       showToast((e as Error).message, "error");
@@ -392,15 +379,25 @@ export function FilesTab({
     items: { name: string; getBytes: () => Promise<Uint8Array> }[]
   ) => {
     if (items.length === 0) return;
-    // recursive: without it the dialog only scopes the folder itself, and
-    // every write to a file *inside* it is rejected by the fs plugin.
-    const destination = await openFileDialog({
-      directory: true,
-      recursive: true,
-      multiple: false,
-      title: t("downloadAll.pickFolder"),
-    });
-    if (!destination || typeof destination !== "string") return;
+
+    // Tauri: one folder pick + a write per file. Browser: no folder-write
+    // API exists, so each file triggers its own download instead — the
+    // browser just drops them all into the user's Downloads folder.
+    let destination: string | null = null;
+    let writeFile: ((path: string, bytes: Uint8Array) => Promise<void>) | null = null;
+    if (isTauriRuntime()) {
+      // recursive: without it the dialog only scopes the folder itself, and
+      // every write to a file *inside* it is rejected by the fs plugin.
+      const picked = await openFileDialog({
+        directory: true,
+        recursive: true,
+        multiple: false,
+        title: t("downloadAll.pickFolder"),
+      });
+      if (!picked || typeof picked !== "string") return;
+      destination = picked;
+      writeFile = (await import("@tauri-apps/plugin-fs")).writeFile;
+    }
 
     const usedNames = new Set<string>();
     let succeeded = 0;
@@ -410,7 +407,12 @@ export function FilesTab({
       setBulkProgress({ done: i, total: items.length, label: item.name });
       try {
         const bytes = await item.getBytes();
-        await writeFile(`${destination}/${uniqueFileName(item.name, usedNames)}`, bytes);
+        const fileName = uniqueFileName(item.name, usedNames);
+        if (destination && writeFile) {
+          await writeFile(`${destination}/${fileName}`, bytes);
+        } else {
+          await saveBytes(bytes, fileName);
+        }
         succeeded++;
       } catch (e) {
         // best-effort — skip files that fail, report the count at the end
@@ -972,7 +974,7 @@ export function FilesTab({
           }
         >
           <div className="text-small text-muted" style={{ marginBottom: 10 }}>
-            {pendingMasterFile.split(/[\\/]/).pop()}
+            {pendingMasterFile.name}
           </div>
           <div className="field">
             <label className="field-label">{t("masters.versionNamePrompt")}</label>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
-import { useIsIOS } from "@/lib/platform";
+import { useIsDesktopTauri } from "@/lib/platform";
 import {
   defaultPort,
   generatePin,
@@ -35,7 +35,7 @@ type ReceiveStatus = "idle" | "connecting" | "transferring" | "done" | "error";
 export function LanTransferScreen() {
   const { showToast } = useToast();
   const { t } = useI18n();
-  const isIOS = useIsIOS();
+  const isDesktopTauri = useIsDesktopTauri();
 
   const [mode, setMode] = useState<Mode>("send");
   const [localIp, setLocalIp] = useState<string | null>(null);
@@ -141,7 +141,7 @@ export function LanTransferScreen() {
     setReceiveStatus("idle");
   };
 
-  if (isIOS) return null;
+  if (!isDesktopTauri) return null;
 
   const sendBusy = sendStatus === "waiting" || sendStatus === "connected" || sendStatus === "transferring";
   const receiveBusy = receiveStatus === "connecting" || receiveStatus === "transferring";

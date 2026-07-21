@@ -4,7 +4,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
-import { useIsIOS } from "@/lib/platform";
+import { useIsDesktopTauri } from "@/lib/platform";
 import type { ProjectModel } from "@/models/types";
 import { getProjects } from "@/services/projectService";
 import {
@@ -30,7 +30,7 @@ export function ExportScreen() {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const { t } = useI18n();
-  const isIOS = useIsIOS();
+  const isDesktopTauri = useIsDesktopTauri();
   const navigate = useNavigate();
 
   const [projects, setProjects] = useState<ProjectModel[]>([]);
@@ -198,6 +198,7 @@ export function ExportScreen() {
         ))}
       </div>
 
+      {isDesktopTauri && (
       <div className="card card-pad">
         <div className="section-title">
           <IconFolder style={{ width: 13, height: 13, verticalAlign: -2 }} />{" "}
@@ -324,6 +325,7 @@ export function ExportScreen() {
           </div>
         )}
       </div>
+      )}
 
       <div className="card card-pad" style={{ marginTop: 20 }}>
         <div className="section-title">
@@ -348,7 +350,7 @@ export function ExportScreen() {
         )}
       </div>
 
-      {!isIOS && (
+      {isDesktopTauri && (
         <div className="card card-pad" style={{ marginTop: 20 }}>
           <div className="section-title">
             <IconWifi style={{ width: 13, height: 13, verticalAlign: -2 }} />{" "}

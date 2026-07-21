@@ -188,6 +188,16 @@ export async function setTaskDueDate(
   });
 }
 
+/** `transcript` should already be encrypted (via encryptText with the
+ *  project file key) for zero-knowledge voice notes; plain text otherwise. */
+export async function updateTaskTranscript(
+  projectId: string,
+  taskId: string,
+  transcript: string
+): Promise<void> {
+  await updateDoc(doc(tasksCollection(projectId), taskId), { voiceNoteTranscript: transcript });
+}
+
 // ── Comments ─────────────────────────────────────────────────────
 
 export function watchComments(

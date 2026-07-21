@@ -5,7 +5,8 @@ import { useI18n } from "@/i18n";
 import { useIsIOS } from "@/lib/platform";
 import { getOrCreateProjectFileKey } from "@/services/fileKeyService";
 import { fetchBytes } from "@/lib/download";
-import { decryptBytes } from "@/lib/crypto";
+import { decryptBytes, decryptText, encryptText, isEncryptedString } from "@/lib/crypto";
+import { transcribeVoiceNote, type ModelProgress } from "@/services/transcriptionService";
 import { isProjectViewer, type CommentModel, type ProjectModel, type TaskModel } from "@/models/types";
 import {
   watchTasks,
@@ -17,6 +18,7 @@ import {
   deleteSubtask,
   reorderTasks,
   setTaskDueDate,
+  updateTaskTranscript,
   watchComments,
   addComment,
   deleteComment,
@@ -31,6 +33,7 @@ import {
   IconMessage,
   IconCalendar,
   IconSearch,
+  IconSparkles,
 } from "@/components/Icons";
 
 function isVoiceNoteUrl(value: string): boolean {
@@ -39,18 +42,33 @@ function isVoiceNoteUrl(value: string): boolean {
 
 /** Voice notes from zero-knowledge links carry their IV as a `#iv=`
  *  suffix on the stored URL — those are fetched and decrypted with the
- *  project file key into a blob URL. Legacy notes stream directly. */
+ *  project file key into a blob URL. Legacy notes stream directly.
+ *  Also offers on-device transcription (Whisper/WASM, see
+ *  transcriptionService.ts) — no decrypted audio or text ever leaves the
+ *  device, so the transcript is re-encrypted with the same project file
+ *  key before being persisted, mirroring the voice note's own E2E model. */
 function VoiceNoteAudio({
   src,
+  projectId,
+  taskId,
   projectFileKey,
+  storedTranscript,
   lockedHint,
 }: {
   src: string;
+  projectId: string;
+  taskId: string;
   projectFileKey: string | null;
+  storedTranscript: string | null;
   lockedHint: string;
 }) {
+  const { t } = useI18n();
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcribeError, setTranscribeError] = useState<string | null>(null);
+  const [modelProgress, setModelProgress] = useState<ModelProgress | null>(null);
   const ivMatch = src.match(/#iv=([^&]+)/);
 
   useEffect(() => {
@@ -83,16 +101,104 @@ function VoiceNoteAudio({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, projectFileKey]);
 
+  useEffect(() => {
+    if (!storedTranscript) {
+      setTranscript(null);
+      return;
+    }
+    if (!isEncryptedString(storedTranscript)) {
+      setTranscript(storedTranscript);
+      return;
+    }
+    if (!projectFileKey) return;
+    let cancelled = false;
+    void decryptText(storedTranscript, projectFileKey).then((text) => {
+      if (!cancelled) setTranscript(text);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [storedTranscript, projectFileKey]);
+
+  const handleTranscribe = async () => {
+    setTranscribing(true);
+    setTranscribeError(null);
+    setModelProgress(null);
+    try {
+      const audioSrc = ivMatch ? blobUrl : src;
+      if (!audioSrc) throw new Error(lockedHint);
+      const response = await fetch(audioSrc);
+      const blob = await response.blob();
+      const text = await transcribeVoiceNote(blob, setModelProgress);
+      if (!text) {
+        setTranscribeError(t("tasks.voiceNote.transcribeEmpty"));
+        return;
+      }
+      const toStore = ivMatch && projectFileKey ? await encryptText(text, projectFileKey) : text;
+      await updateTaskTranscript(projectId, taskId, toStore);
+      setTranscript(text);
+    } catch (e) {
+      setTranscribeError((e as Error).message || t("tasks.voiceNote.transcribeFailed"));
+    } finally {
+      setTranscribing(false);
+      setModelProgress(null);
+    }
+  };
+
   const style = { height: 28, marginTop: 4, maxWidth: 260 } as const;
-  if (!ivMatch) return <audio controls src={src} style={style} />;
-  if (failed || (!projectFileKey && !blobUrl)) {
+
+  if (ivMatch && failed) {
     return (
       <div className="text-xs text-muted" style={{ marginTop: 4 }}>
         🔒 {lockedHint}
       </div>
     );
   }
-  return blobUrl ? <audio controls src={blobUrl} style={style} /> : null;
+  if (ivMatch && !projectFileKey && !blobUrl) {
+    return (
+      <div className="text-xs text-muted" style={{ marginTop: 4 }}>
+        🔒 {lockedHint}
+      </div>
+    );
+  }
+  if (ivMatch && !blobUrl) return null;
+
+  return (
+    <div style={{ marginTop: 4 }}>
+      <audio controls src={ivMatch ? (blobUrl ?? undefined) : src} style={style} />
+      {transcript ? (
+        <div className="voice-transcript">
+          <IconSparkles style={{ width: 11, height: 11, flexShrink: 0, marginTop: 2 }} />
+          <span>{transcript}</span>
+        </div>
+      ) : (
+        <div style={{ marginTop: 4 }}>
+          <button
+            className="voice-transcribe-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleTranscribe();
+            }}
+            disabled={transcribing}
+          >
+            <IconSparkles style={{ width: 11, height: 11 }} />
+            {transcribing
+              ? modelProgress
+                ? t("tasks.voiceNote.modelLoading", {
+                    percent: Math.round((modelProgress.loaded / modelProgress.total) * 100),
+                  })
+                : t("tasks.voiceNote.transcribing")
+              : t("tasks.voiceNote.transcribe")}
+          </button>
+          {transcribeError && (
+            <div className="text-xs" style={{ color: "var(--danger)", marginTop: 3 }}>
+              {transcribeError}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function TasksTab({ project }: { project: ProjectModel }) {
@@ -242,7 +348,10 @@ export function TasksTab({ project }: { project: ProjectModel }) {
             {task.description && isVoiceNoteUrl(task.description) ? (
               <VoiceNoteAudio
                 src={task.description}
+                projectId={project.id}
+                taskId={task.id}
                 projectFileKey={projectFileKey}
+                storedTranscript={task.voiceNoteTranscript}
                 lockedHint={t("e2e.keyLocked")}
               />
             ) : (

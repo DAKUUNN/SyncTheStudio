@@ -17,6 +17,14 @@ import { createTasksFromRevisionPoints } from "@/services/taskService";
 import { Spinner, formatDateTime } from "@/components/ui";
 import { UploadPanel } from "./UploadPanel";
 import {
+  decodeToAudioBuffer,
+  getChannels,
+  computeWaveformPeaks as computePeaksFromChannel,
+  buildSpectrogramImage,
+  computeLoudness,
+  type LoudnessResult,
+} from "@/lib/audioAnalysis";
+import {
   IconDownload,
   IconLink,
   IconLock,
@@ -28,6 +36,8 @@ import {
   IconTrash,
   IconCheck,
   IconVolume,
+  IconChart,
+  IconActivity,
 } from "@/components/Icons";
 
 const VOLUME_STORAGE_KEY = "sts_master_review_volume";
@@ -81,41 +91,32 @@ async function fetchDecryptedBlob(master: MasterVersionModel): Promise<Blob> {
 
 const WAVEFORM_BUCKETS = 90;
 
-/** Best-effort — some browsers/formats may fail to decode, waveform just
- * falls back to a plain seek bar in that case (see loadMaster's catch). */
-async function computeWaveformPeaks(bytes: Uint8Array): Promise<number[]> {
-  const AudioContextCtor =
-    window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext;
-  if (!AudioContextCtor) return [];
-  const ctx = new AudioContextCtor();
+interface MasterAudioAnalysis {
+  peaks: number[];
+  spectrogramUrl: string | null;
+  loudness: LoudnessResult | null;
+}
+
+/** Best-effort — some browsers/formats may fail to decode; the player just
+ * falls back to a plain seek bar and hides the spectrogram/LUFS row in that
+ * case (see loadMaster's catch). Decodes the audio exactly once and derives
+ * the waveform, spectrogram and loudness from that single AudioBuffer. */
+async function analyzeMasterAudio(bytes: Uint8Array): Promise<MasterAudioAnalysis> {
+  const empty: MasterAudioAnalysis = { peaks: [], spectrogramUrl: null, loudness: null };
   try {
-    if (ctx.state === "suspended") await ctx.resume().catch(() => {});
-    const buffer = bytes.buffer.slice(
-      bytes.byteOffset,
-      bytes.byteOffset + bytes.byteLength
-    ) as ArrayBuffer;
-    const audioBuffer = await ctx.decodeAudioData(buffer);
-    const channelData = audioBuffer.getChannelData(0);
-    const blockSize = Math.max(1, Math.floor(channelData.length / WAVEFORM_BUCKETS));
-    const peaks: number[] = [];
-    let max = 0;
-    for (let i = 0; i < WAVEFORM_BUCKETS; i++) {
-      let blockMax = 0;
-      const start = i * blockSize;
-      for (let j = 0; j < blockSize; j++) {
-        const value = Math.abs(channelData[start + j] ?? 0);
-        if (value > blockMax) blockMax = value;
-      }
-      peaks.push(blockMax);
-      if (blockMax > max) max = blockMax;
-    }
-    return max > 0 ? peaks.map((p) => p / max) : peaks;
+    const audioBuffer = await decodeToAudioBuffer(bytes);
+    if (!audioBuffer) return empty;
+    const channels = getChannels(audioBuffer);
+    const mono = channels[0];
+    const peaks = mono ? computePeaksFromChannel(mono, WAVEFORM_BUCKETS) : [];
+    const spectrogram = mono
+      ? buildSpectrogramImage(mono, audioBuffer.sampleRate, audioBuffer.duration)
+      : null;
+    const loudness = computeLoudness(channels, audioBuffer.sampleRate);
+    return { peaks, spectrogramUrl: spectrogram?.dataUrl ?? null, loudness };
   } catch (e) {
-    console.warn("waveform decode failed:", e);
-    return [];
-  } finally {
-    void ctx.close();
+    console.warn("audio analysis failed:", e);
+    return empty;
   }
 }
 
@@ -124,6 +125,16 @@ function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+function formatLufs(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return "—";
+  return `${value.toFixed(1)} LUFS`;
+}
+
+function formatDb(value: number): string {
+  if (!Number.isFinite(value)) return "-∞ dB";
+  return `${value.toFixed(1)} dB`;
 }
 
 function loadStoredVolume(): number {
@@ -353,7 +364,8 @@ function MasterCompareStudio({
 }) {
   const [activeMasterId, setActiveMasterId] = useState(masters[0]?.id ?? "");
   const [urlCache, setUrlCache] = useState<Record<string, string>>({});
-  const [peaksCache, setPeaksCache] = useState<Record<string, number[]>>({});
+  const [analysisCache, setAnalysisCache] = useState<Record<string, MasterAudioAnalysis>>({});
+  const [viewMode, setViewMode] = useState<"wave" | "spectrogram">("wave");
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -416,8 +428,10 @@ function MasterCompareStudio({
       const url = URL.createObjectURL(bytesToBlob(plainBytes, master.mimeType));
       urlCacheRef.current = { ...urlCacheRef.current, [masterId]: url };
       setUrlCache((prev) => ({ ...prev, [masterId]: url }));
-      void computeWaveformPeaks(plainBytes).then((peaks) => {
-        if (peaks.length > 0) setPeaksCache((prev) => ({ ...prev, [masterId]: peaks }));
+      void analyzeMasterAudio(plainBytes).then((analysis) => {
+        if (analysis.peaks.length > 0 || analysis.spectrogramUrl) {
+          setAnalysisCache((prev) => ({ ...prev, [masterId]: analysis }));
+        }
       });
     } catch (e) {
       setLoadError((e as Error).message || "Audio konnte nicht geladen werden.");
@@ -639,28 +653,71 @@ function MasterCompareStudio({
                 {isPlaying ? <IconPause /> : <IconPlay />}
               </button>
               <div className="ab-player-body">
-                {activeMasterId && peaksCache[activeMasterId] ? (
-                  <div
-                    className="ab-waveform"
-                    onClick={(e) => {
-                      if (!duration) return;
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-                      onSeek(ratio * duration);
-                    }}
-                  >
-                    {peaksCache[activeMasterId].map((peak, i) => {
-                      const playedRatio = duration > 0 ? currentTime / duration : 0;
-                      const isPlayed = i / peaksCache[activeMasterId].length <= playedRatio;
-                      return (
-                        <div
-                          key={i}
-                          className={`ab-waveform-bar${isPlayed ? " played" : ""}`}
-                          style={{ height: `${Math.max(10, peak * 100)}%` }}
+                {activeMasterId && analysisCache[activeMasterId]?.peaks.length ? (
+                  <>
+                    {analysisCache[activeMasterId].spectrogramUrl && (
+                      <div className="ab-view-toggle">
+                        <button
+                          className={`ab-view-toggle-btn${viewMode === "wave" ? " active" : ""}`}
+                          onClick={() => setViewMode("wave")}
+                          title="Waveform"
+                        >
+                          <IconChart style={{ width: 13, height: 13 }} />
+                        </button>
+                        <button
+                          className={`ab-view-toggle-btn${viewMode === "spectrogram" ? " active" : ""}`}
+                          onClick={() => setViewMode("spectrogram")}
+                          title="Spektrogramm"
+                        >
+                          <IconActivity style={{ width: 13, height: 13 }} />
+                        </button>
+                      </div>
+                    )}
+                    {viewMode === "spectrogram" && analysisCache[activeMasterId].spectrogramUrl ? (
+                      <div
+                        className="ab-spectrogram"
+                        onClick={(e) => {
+                          if (!duration) return;
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+                          onSeek(ratio * duration);
+                        }}
+                      >
+                        <img
+                          src={analysisCache[activeMasterId].spectrogramUrl ?? undefined}
+                          className="ab-spectrogram-img"
+                          draggable={false}
+                          alt=""
                         />
-                      );
-                    })}
-                  </div>
+                        <div
+                          className="ab-playhead"
+                          style={{ left: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="ab-waveform"
+                        onClick={(e) => {
+                          if (!duration) return;
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+                          onSeek(ratio * duration);
+                        }}
+                      >
+                        {analysisCache[activeMasterId].peaks.map((peak, i) => {
+                          const playedRatio = duration > 0 ? currentTime / duration : 0;
+                          const isPlayed = i / analysisCache[activeMasterId].peaks.length <= playedRatio;
+                          return (
+                            <div
+                              key={i}
+                              className={`ab-waveform-bar${isPlayed ? " played" : ""}`}
+                              style={{ height: `${Math.max(10, peak * 100)}%` }}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <input
                     className="ab-seek"
@@ -676,6 +733,12 @@ function MasterCompareStudio({
                   <span>{formatTime(currentTime)}</span>
                   <span>{formatTime(duration)}</span>
                 </div>
+                {activeMasterId && analysisCache[activeMasterId]?.loudness && (
+                  <div className="ab-loudness-row">
+                    <span>LUFS (Integrated): {formatLufs(analysisCache[activeMasterId].loudness!.integratedLufs)}</span>
+                    <span>Peak: {formatDb(analysisCache[activeMasterId].loudness!.peakDb)}</span>
+                  </div>
+                )}
               </div>
               <div className="ab-volume">
                 <IconVolume style={{ width: 15, height: 15 }} />

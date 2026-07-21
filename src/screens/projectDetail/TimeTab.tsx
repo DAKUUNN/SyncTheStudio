@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
-import { useIsIOS } from "@/lib/platform";
+import { useIsDesktopTauri } from "@/lib/platform";
 import { formatDuration, type ProjectModel, type TimeEntryModel } from "@/models/types";
 import {
   watchTimeEntries,
@@ -25,7 +25,7 @@ export function TimeTab({ project }: { project: ProjectModel }) {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const { t, lang } = useI18n();
-  const isIOS = useIsIOS();
+  const isDesktopTauri = useIsDesktopTauri();
 
   const [entries, setEntries] = useState<TimeEntryModel[]>([]);
   const [activeTimerId, setActiveTimerId] = useState<string | null>(null);
@@ -213,7 +213,7 @@ export function TimeTab({ project }: { project: ProjectModel }) {
         </div>
       </div>
 
-      {!isIOS && (
+      {isDesktopTauri && (
         <div className="card card-pad" style={{ marginBottom: 16 }}>
           <div className="row row-between" style={{ marginBottom: autoTrackEnabled ? 10 : 0 }}>
             <div className="row">

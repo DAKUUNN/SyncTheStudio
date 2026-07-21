@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n";
 import { checkForUpdate, installUpdateAndRestart, type AvailableUpdate } from "@/services/updateService";
-import { useIsIOS } from "@/lib/platform";
+import { useIsDesktopTauri } from "@/lib/platform";
 import { Modal, ProgressBar } from "./ui";
 import { IconDownload, IconRefresh } from "./Icons";
 
@@ -16,7 +16,7 @@ const RECHECK_INTERVAL_MS = 30 * 60 * 1000;
  *  (see src-tauri/src/lib.rs), so there's nothing here to check. */
 export function UpdateNotifier() {
   const { t } = useI18n();
-  const isIOS = useIsIOS();
+  const isDesktopTauri = useIsDesktopTauri();
   const [update, setUpdate] = useState<AvailableUpdate | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -24,7 +24,7 @@ export function UpdateNotifier() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isIOS) return;
+    if (!isDesktopTauri) return;
     let cancelled = false;
     const runCheck = () => {
       void checkForUpdate().then((result) => {
@@ -41,9 +41,9 @@ export function UpdateNotifier() {
       window.clearTimeout(startTimer);
       window.clearInterval(interval);
     };
-  }, [isIOS]);
+  }, [isDesktopTauri]);
 
-  if (isIOS || !update || dismissed) return null;
+  if (!isDesktopTauri || !update || dismissed) return null;
 
   const onInstall = async () => {
     setInstalling(true);

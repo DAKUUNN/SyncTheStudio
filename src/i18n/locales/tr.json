@@ -452,5 +452,10 @@
   "lanTransfer.receiveDoneAt": "Tamamlandı — kaydedildi: {path}",
   "lanTransfer.exportCardDescription": "Aynı Wi-Fi ağındaki iki cihaz arasında büyük dosyaları doğrudan gönder.",
   "lanTransfer.exportCardOpen": "Ağ aktarımını aç",
-  "lanTransfer.newPin": "Yeni PIN"
+  "lanTransfer.newPin": "Yeni PIN",
+  "tasks.voiceNote.modelLoading": "Model yükleniyor… %{percent}",
+  "tasks.voiceNote.transcribe": "Yazıya dök",
+  "tasks.voiceNote.transcribeEmpty": "Konuşma algılanmadı.",
+  "tasks.voiceNote.transcribeFailed": "Yazıya dökme başarısız.",
+  "tasks.voiceNote.transcribing": "Yazıya dökülüyor…"
 }

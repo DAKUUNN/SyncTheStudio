@@ -1,5 +1,4 @@
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { readTextFile } from "@tauri-apps/plugin-fs";
+import { pickFiles } from "@/lib/filePicker";
 import { createProject } from "./projectService";
 import { createCustomer } from "./customerService";
 import { importTasks } from "./taskService";
@@ -73,18 +72,20 @@ export interface BackupSummary {
 
 /** Step 1: pick and parse a backup file, without importing anything yet. */
 export async function pickBackupFile(): Promise<BackupSummary | null> {
-  const selected = await openDialog({
+  const selected = await pickFiles({
     multiple: false,
-    filters: [{ name: "Backup", extensions: ["json"] }],
+    accept: ".json",
+    dialogFilters: [{ name: "Backup", extensions: ["json"] }],
   });
-  if (!selected || typeof selected !== "string") return null;
+  const file = selected?.[0];
+  if (!file) return null;
 
-  const data = JSON.parse(await readTextFile(selected)) as BackupFile;
+  const data = JSON.parse(new TextDecoder().decode(file.bytes)) as BackupFile;
   if (!Array.isArray(data.projects) && !Array.isArray(data.customers)) {
     throw new Error("Keine gültige Backup-Datei (projects/customers fehlen).");
   }
   return {
-    filePath: selected,
+    filePath: file.name,
     data,
     projectCount: data.projects?.length ?? 0,
     customerCount: data.customers?.length ?? 0,

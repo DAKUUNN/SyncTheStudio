@@ -452,5 +452,10 @@
   "lanTransfer.receiveDoneAt": "Готово — сохранено в: {path}",
   "lanTransfer.exportCardDescription": "Передавайте большие файлы напрямую между двумя устройствами в одной Wi-Fi-сети.",
   "lanTransfer.exportCardOpen": "Открыть сетевую передачу",
-  "lanTransfer.newPin": "Новый PIN"
+  "lanTransfer.newPin": "Новый PIN",
+  "tasks.voiceNote.modelLoading": "Загрузка модели… {percent}%",
+  "tasks.voiceNote.transcribe": "Транскрибировать",
+  "tasks.voiceNote.transcribeEmpty": "Речь не распознана.",
+  "tasks.voiceNote.transcribeFailed": "Ошибка транскрибации.",
+  "tasks.voiceNote.transcribing": "Транскрибация…"
 }

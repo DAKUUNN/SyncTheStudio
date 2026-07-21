@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/stores/authStore";
-import { useIsIOS } from "@/lib/platform";
+import { useIsDesktopTauri } from "@/lib/platform";
 import { useI18n } from "@/i18n";
 import { startTimer, stopTimer } from "@/services/timeTrackingService";
 import {
@@ -24,7 +24,7 @@ const STOP_GRACE_MS = 90_000;
  *  assigned via the toggle in TimeTab, whenever a known DAW has focus. */
 export function DawAutoTracker() {
   const { currentUser } = useAuth();
-  const isIOS = useIsIOS();
+  const isDesktopTauri = useIsDesktopTauri();
   const { t } = useI18n();
   const activeEntryRef = useRef<DawActiveEntry | null>(null);
   const lastFocusedAtRef = useRef<number>(0);
@@ -40,7 +40,7 @@ export function DawAutoTracker() {
   }, []);
 
   useEffect(() => {
-    if (isIOS || !currentUser) return;
+    if (!isDesktopTauri || !currentUser) return;
 
     const stopActive = async () => {
       const entry = activeEntryRef.current;
@@ -87,7 +87,7 @@ export function DawAutoTracker() {
     const interval = window.setInterval(() => void tick(), POLL_MS);
     void tick();
     return () => window.clearInterval(interval);
-  }, [isIOS, currentUser?.id, currentUser?.username, t]);
+  }, [isDesktopTauri, currentUser?.id, currentUser?.username, t]);
 
   return null;
 }

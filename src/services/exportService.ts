@@ -1,6 +1,7 @@
-import { save, open as openDialog } from "@tauri-apps/plugin-dialog";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { writeTextFile, writeFile, mkdir, copyFile, readDir, exists } from "@tauri-apps/plugin-fs";
 import { fetchBytes } from "@/lib/download";
+import { saveText } from "@/lib/filePicker";
 import { getProjects, getProjectHistory } from "./projectService";
 import { getCustomers } from "./customerService";
 import { getTasks } from "./taskService";
@@ -85,13 +86,7 @@ export async function exportProjectsToCSV(userId: string): Promise<string | null
     );
   }
 
-  const path = await save({
-    defaultPath: `projekte_${timestampSuffix()}.csv`,
-    filters: [{ name: "CSV", extensions: ["csv"] }],
-  });
-  if (!path) return null;
-  await writeTextFile(path, lines.join("\n"));
-  return path;
+  return saveText(lines.join("\n"), `projekte_${timestampSuffix()}.csv`);
 }
 
 export async function exportCustomersToCSV(userId: string): Promise<string | null> {
@@ -121,13 +116,7 @@ export async function exportCustomersToCSV(userId: string): Promise<string | nul
     );
   }
 
-  const path = await save({
-    defaultPath: `kunden_${timestampSuffix()}.csv`,
-    filters: [{ name: "CSV", extensions: ["csv"] }],
-  });
-  if (!path) return null;
-  await writeTextFile(path, lines.join("\n"));
-  return path;
+  return saveText(lines.join("\n"), `kunden_${timestampSuffix()}.csv`);
 }
 
 export async function exportTimeEntriesToCSV(userId: string): Promise<string | null> {
@@ -154,13 +143,7 @@ export async function exportTimeEntriesToCSV(userId: string): Promise<string | n
   lines.push("");
   lines.push(`Gesamt Stunden;${totalHours.toFixed(2)}`);
 
-  const path = await save({
-    defaultPath: `zeiterfassung_${timestampSuffix()}.csv`,
-    filters: [{ name: "CSV", extensions: ["csv"] }],
-  });
-  if (!path) return null;
-  await writeTextFile(path, lines.join("\n"));
-  return path;
+  return saveText(lines.join("\n"), `zeiterfassung_${timestampSuffix()}.csv`);
 }
 
 export async function generateFullBackup(userId: string): Promise<string | null> {
@@ -226,13 +209,7 @@ export async function generateFullBackup(userId: string): Promise<string | null>
     })),
   };
 
-  const path = await save({
-    defaultPath: `backup_${timestampSuffix()}.json`,
-    filters: [{ name: "JSON", extensions: ["json"] }],
-  });
-  if (!path) return null;
-  await writeTextFile(path, JSON.stringify(backupData, null, 2));
-  return path;
+  return saveText(JSON.stringify(backupData, null, 2), `backup_${timestampSuffix()}.json`);
 }
 
 /** Folder export for a single project. Everything is numbered so the

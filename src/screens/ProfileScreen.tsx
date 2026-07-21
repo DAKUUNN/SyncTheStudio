@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import { readFile } from "@tauri-apps/plugin-fs";
+import { pickFiles } from "@/lib/filePicker";
 import { useAuth } from "@/stores/authStore";
 import { useToast } from "@/stores/toastStore";
 import { useI18n } from "@/i18n";
@@ -26,19 +25,19 @@ export function ProfileScreen() {
   if (!currentUser) return null;
 
   const onPickAvatar = async () => {
-    const selected = await openFileDialog({
+    const selected = await pickFiles({
       multiple: false,
-      filters: [{ name: "Bilder", extensions: ["png", "jpg", "jpeg", "webp"] }],
+      accept: "image/png,image/jpeg,image/webp",
+      dialogFilters: [{ name: "Bilder", extensions: ["png", "jpg", "jpeg", "webp"] }],
     });
-    if (!selected || typeof selected !== "string") return;
+    const file = selected?.[0];
+    if (!file) return;
     setBusy(true);
     try {
-      const bytes = await readFile(selected);
       if (currentUser.avatarUrl) {
         await deleteAvatar(currentUser.avatarUrl);
       }
-      const fileName = selected.split(/[\\/]/).pop() ?? "avatar.jpg";
-      const url = await uploadAvatar(bytes, currentUser.id, fileName);
+      const url = await uploadAvatar(file.bytes, currentUser.id, file.name);
       await updateOwnProfile({ avatarUrl: url });
       showToast(t("profile.avatarUpdated"), "success");
     } catch (e) {

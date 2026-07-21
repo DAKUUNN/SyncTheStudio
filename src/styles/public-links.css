@@ -398,12 +398,82 @@
   background: linear-gradient(180deg, #8d6bff, #a652ff);
 }
 
+.ab-view-toggle {
+  display: flex;
+  gap: 2px;
+  width: fit-content;
+  margin-bottom: 6px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid rgb(255 255 255 / 0.06);
+}
+
+.ab-view-toggle-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 20px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(224 225 235 / 0.45);
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.ab-view-toggle-btn:hover {
+  color: rgb(224 225 235 / 0.75);
+}
+
+.ab-view-toggle-btn.active {
+  background: rgb(166 82 255 / 0.22);
+  color: #fff;
+}
+
+.ab-spectrogram {
+  position: relative;
+  height: 36px;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #06040f;
+}
+
+.ab-spectrogram-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  image-rendering: pixelated;
+}
+
+.ab-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #fff;
+  box-shadow: 0 0 6px rgb(255 255 255 / 0.7);
+  pointer-events: none;
+}
+
 .ab-player-times {
   display: flex;
   justify-content: space-between;
   margin-top: 4px;
   font-size: 0.72rem;
   color: rgb(224 225 235 / 0.5);
+}
+
+.ab-loudness-row {
+  display: flex;
+  gap: 14px;
+  margin-top: 5px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgb(224 225 235 / 0.4);
 }
 
 .ab-volume {
