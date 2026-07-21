@@ -445,6 +445,7 @@
   "masters.downloadAllowed": "Download erlaubt",
   "masters.downloaded": "Master gespeichert",
   "masters.empty": "Noch keine Master",
+  "masters.dropHint": "Datei hierher ziehen oder hochladen (verschlüsselt)",
   "masters.emptyHint": "Lade die erste Master-Version hoch (verschlüsselt).",
   "masters.feedbackTitle": "Kunden-Feedback",
   "masters.noFeedback": "Noch kein Feedback über den Review-Link.",

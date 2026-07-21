@@ -10,6 +10,18 @@ export interface ChangelogEntry {
 /** Newest first. Add a new entry here with every release. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "5.7.2",
+    date: "2026-07-21",
+    itemsDe: [
+      "Neu: Master-Dateien können jetzt auch per Drag & Drop hochgeladen werden (bisher nur bei Anhängen möglich)",
+      "Fix: fehlende Fehlerbehandlung nachgerüstet — ein einzelner Fehler blendet nicht mehr die ganze App aus",
+    ],
+    itemsEn: [
+      "New: master files can now be uploaded via drag & drop too (previously only attachments supported this)",
+      "Fix: added proper error handling — a single error no longer blanks the whole app",
+    ],
+  },
+  {
     version: "5.7.1",
     date: "2026-07-21",
     itemsDe: [

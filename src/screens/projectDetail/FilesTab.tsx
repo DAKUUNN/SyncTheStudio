@@ -106,6 +106,7 @@ export function FilesTab({
     label: string;
   } | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [dragOverMaster, setDragOverMaster] = useState(false);
 
   const [masters, setMasters] = useState<MasterVersionModel[]>([]);
   const [feedback, setFeedback] = useState<MasterShareFeedback[]>([]);
@@ -311,16 +312,28 @@ export function FilesTab({
 
   // ── Masters ──────────────────────────────────────────────────
 
-  const onPickMaster = async () => {
-    if (!currentUser) return;
+  const canUploadMaster = (): boolean => {
+    if (!currentUser) return false;
     if (isViewer) {
       showToast(t("team.viewerActionBlocked"), "warning");
-      return;
+      return false;
     }
     if (!hasPremiumStorage(currentUser)) {
       showToast(premiumStorageMessage(), "warning");
-      return;
+      return false;
     }
+    return true;
+  };
+
+  // window.prompt is not supported in Tauri WebViews — use a modal instead,
+  // shared by the "Upload master" button and drag & drop.
+  const stageMasterFile = (file: PickedFile) => {
+    setMasterVersionName(`Master v${masters.length + 1}`);
+    setPendingMasterFile(file);
+  };
+
+  const onPickMaster = async () => {
+    if (!canUploadMaster()) return;
     const selected = await pickFiles({
       multiple: false,
       accept: "audio/*",
@@ -330,9 +343,17 @@ export function FilesTab({
     });
     const file = selected?.[0];
     if (!file) return;
-    // window.prompt is not supported in Tauri WebViews — use a modal instead.
-    setMasterVersionName(`Master v${masters.length + 1}`);
-    setPendingMasterFile(file);
+    stageMasterFile(file);
+  };
+
+  const onDropMaster = async (e: DragEvent) => {
+    e.preventDefault();
+    setDragOverMaster(false);
+    if (!canUploadMaster()) return;
+    const dropped = e.dataTransfer.files[0];
+    if (!dropped) return;
+    const buffer = await dropped.arrayBuffer();
+    stageMasterFile({ bytes: new Uint8Array(buffer), name: dropped.name });
   };
 
   const onUploadMaster = async () => {
@@ -766,62 +787,81 @@ export function FilesTab({
                   </button>
                 </div>
               </div>
-              {bulkProgress !== null && (
-                <div style={{ padding: "12px 16px" }}>
-                  <div className="text-xs text-muted" style={{ marginBottom: 4 }}>
-                    {bulkProgress.label} ({bulkProgress.done + 1}/{bulkProgress.total})
-                  </div>
-                  <ProgressBar value={bulkProgress.done / bulkProgress.total} />
-                </div>
-              )}
-              {masters.length === 0 ? (
-                <div className="empty-state">
-                  <IconMusic />
-                  <h3>{t("masters.empty")}</h3>
-                  <div className="text-small text-muted">{t("masters.emptyHint")}</div>
-                </div>
-              ) : (
-                masters.map((master) => (
-                  <div key={master.id} className="list-row">
-                    <IconMusic style={{ width: 17, height: 17, color: "var(--primary)" }} />
-                    <div className="grow" style={{ minWidth: 0 }}>
-                      <div className="truncate text-small" style={{ fontWeight: 600 }}>
-                        {master.versionName}
-                      </div>
-                      <div className="text-xs text-muted">
-                        {formatFileSize(master.fileSize)} ·{" "}
-                        {formatDateTime(master.createdAt, lang)}
-                        {master.encrypted && (
-                          <>
-                            {" "}
-                            · <IconLock style={{ width: 10, height: 10, verticalAlign: -1 }} />
-                          </>
-                        )}
-                      </div>
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOverMaster(true);
+                }}
+                onDragLeave={() => setDragOverMaster(false)}
+                onDrop={(e) => void onDropMaster(e)}
+                style={
+                  dragOverMaster
+                    ? {
+                        outline: "2px dashed var(--primary)",
+                        outlineOffset: -6,
+                        borderRadius: "var(--radius)",
+                        background: "var(--primary-soft)",
+                      }
+                    : undefined
+                }
+              >
+                {bulkProgress !== null && (
+                  <div style={{ padding: "12px 16px" }}>
+                    <div className="text-xs text-muted" style={{ marginBottom: 4 }}>
+                      {bulkProgress.label} ({bulkProgress.done + 1}/{bulkProgress.total})
                     </div>
-                    <button
-                      className="icon-btn"
-                      title={t("masters.download")}
-                      onClick={() => void onDownloadMaster(master)}
-                    >
-                      <IconDownload />
-                    </button>
-                    {isOwner && (
+                    <ProgressBar value={bulkProgress.done / bulkProgress.total} />
+                  </div>
+                )}
+                {masters.length === 0 ? (
+                  <div className="empty-state">
+                    <IconMusic />
+                    <h3>{t("masters.empty")}</h3>
+                    <div className="text-small text-muted">{t("masters.dropHint")}</div>
+                  </div>
+                ) : (
+                  masters.map((master) => (
+                    <div key={master.id} className="list-row">
+                      <IconMusic style={{ width: 17, height: 17, color: "var(--primary)" }} />
+                      <div className="grow" style={{ minWidth: 0 }}>
+                        <div className="truncate text-small" style={{ fontWeight: 600 }}>
+                          {master.versionName}
+                        </div>
+                        <div className="text-xs text-muted">
+                          {formatFileSize(master.fileSize)} ·{" "}
+                          {formatDateTime(master.createdAt, lang)}
+                          {master.encrypted && (
+                            <>
+                              {" "}
+                              · <IconLock style={{ width: 10, height: 10, verticalAlign: -1 }} />
+                            </>
+                          )}
+                        </div>
+                      </div>
                       <button
                         className="icon-btn"
-                        title={t("common.delete")}
-                        onClick={() =>
-                          void deleteMasterVersion(project.id, master.id).then(() =>
-                            showToast(t("masters.deleted"), "success")
-                          )
-                        }
+                        title={t("masters.download")}
+                        onClick={() => void onDownloadMaster(master)}
                       >
-                        <IconTrash />
+                        <IconDownload />
                       </button>
-                    )}
-                  </div>
-                ))
-              )}
+                      {isOwner && (
+                        <button
+                          className="icon-btn"
+                          title={t("common.delete")}
+                          onClick={() =>
+                            void deleteMasterVersion(project.id, master.id).then(() =>
+                              showToast(t("masters.deleted"), "success")
+                            )
+                          }
+                        >
+                          <IconTrash />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             <div className="card">
